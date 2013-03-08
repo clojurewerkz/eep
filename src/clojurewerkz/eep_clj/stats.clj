@@ -39,7 +39,6 @@
 
   Resetable
   (reset [_]
-    (println "Reseteting")
     (Count. 0))
 
   Object
@@ -122,14 +121,15 @@
   [at mark]
   (WallClock. (now) 0 (now) mark))
 
+
 (deftype MonotonicWindow [e]
   IWindow
   (enqueue [_ v]
-    (emitter/sync-notify e :aggregate [accumulate v])
+    (emitter/notify e :aggregate [accumulate v])
     (emitter/sync-notify e :clock increment))
 
   (clock [_]
-    @(.state (first (emitter/which-handlers e :clock))))
+    (emitter/state (first (emitter/which-handlers e :clock))))
 
   Ticking
   (tick [this]
@@ -137,9 +137,13 @@
     (when (ticked? (.clock this))
       (emitter/sync-notify e :clock tick)
       (when (expired? (.clock this))
+        (emitter/flush-futures e)
         (emitter/sync-notify e :emit (map emitter/state (emitter/which-handlers e :aggregate)))
         (emitter/sync-notify e :clock reset)
-        (emitter/sync-notify e :aggregate [reset]))))
+        (emitter/sync-notify e :aggregate [reset])
+        )
+      )
+    )
 
   Object
   (toString [this]
@@ -161,7 +165,9 @@
   (let [e (emitter/new-emitter)]
     (emitter/add-handler e :aggregate aggregate-wrap aggregate)
     (emitter/add-handler e :clock tick-wrap clock)
-    (emitter/add-handler e :emit #(h (into {} (for [i %]
-                                                (let [stat (deref i)]
-                                                  [(title stat) (emit stat)])))))
+    (emitter/add-handler e :emit #(if-not (empty? %)
+                                    (h
+                                     (into {} (for [i %]
+                                                (let [stat i]
+                                                  [(title stat) (emit stat)]))))))
     (MonotonicWindow. e)))

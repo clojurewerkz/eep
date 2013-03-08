@@ -19,9 +19,10 @@ handle events and streams.
 
 Idea and API of Event Emitter was inspired by Erlang [gen_event behavior](http://www.erlang.org/doc/man/gen_event.html)
 
-Currently, event execution order is not guaranteed. It is currently solved by sync-notify function,
-that is being executed synchronously. Althought that undermines usage of STM in that case. Future
-versions will contain implementation with order guarantee.
+Event order is guaranteed. In order to verify that all the pending operations are done by certain point,
+you can use `flush-futures` function. It's a synchronous operation, and may take an unpredictable amount
+of time, depending on the contention.
+
 
 ## Usage
 

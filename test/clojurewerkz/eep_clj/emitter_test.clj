@@ -5,13 +5,9 @@
 (deftest a-test
   (let [emitter (new-emitter)]
     (add-handler emitter :count + 100)
-    (add-handler emitter :count + 0)
-    (add-handler emitter :count println)
 
     (sync-notify emitter :count 1)
     (sync-notify emitter :count 1)
     (sync-notify emitter :count 1)
 
-    (println (which-handlers emitter))
-
-    ))
+    (is (= 103 (state (first (:count (which-handlers emitter))))))))
