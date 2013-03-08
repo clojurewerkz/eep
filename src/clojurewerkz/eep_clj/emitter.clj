@@ -1,7 +1,7 @@
 (ns ^{:doc "Event Emitter, right now it's a poor man's clone of "}
   clojurewerkz.eep-clj.emitter
   (:require [clojure.set :as clj-set])
-  (:import [java.util.concurrent ExecutorService Executors]))
+  (:import [java.util.concurrent Executors]))
 
 (def global-handler :___global)
 
@@ -9,38 +9,60 @@
                    (.availableProcessors)
                    inc))
 
-(defonce executor (Executors/newFixedThreadPool pool-size))
+(defn make-executor
+  []
+  (Executors/newFixedThreadPool pool-size))
+
 
 (defprotocol IEmitter
   (add-handler [_ t f initial-state] [_ f initial-state] "Adds handler to the current emmiter.
 Handler state is stored in atom, that is first initialized with `initial-state`.
 
-`f` is a function of 2 arguments, first one is current Handler state
-3-arity version registers a global handler")
-  (delete-handler [_ t f])
-  (which-handlers [_] [_ t])
-  (notify [_ type args])
-  (sync-notify [_ type args])
-  (! [_ type args])
-  (swap-handler [_ old-f new-f])
-  (stop [_]))
+  2-arity version: `(event-type f initial-state)`
+
+`(f handler-state new-value)` is a function of 2 arguments, first one is current Handler state,
+second one is a new value. Function return becomes a new Handler state.
+
+  3-arity version: `(event-type f)`
+
+`(f handler-state)` is a function of 1 argument, that's used to add a Stateless Handler,
+potentially having side-effects. By enclosing emitter you can achieve capturing state of all
+or any handlers.")
+  (delete-handler [_ t f] "Removes the handler `f` from the current emitter, that's used for event
+type `t`. ")
+  (which-handlers [_] [_ t] "Returns all currently registered Handlers for Emitter")
+  (flush-futures [_] "Under some circumstances, you may want to make sure that all the pending tasks
+are executed by some point. By calling `flush-futures`, you force-complete all the pending tasks.")
+  (notify [_ type args] "Asynchronous (default) event dispatch function. All the Handlers (both
+stateful and stateless).")
+  (! [_ type args] "Erlang-style alias for `notify`")
+  (sync-notify [_ type args] "Synchronous event dispatch function. Dispatches an event to all the
+handlers (both stateful and stateless), waits until each handler completes synchronously.")
+  (swap-handler [_ t old-f new-f] "Replaces `old-f` event handlers with `new-f` event handlers for type
+`t`")
+  (stop [_] "Cancels all pending tasks, stops event emission."))
 
 (defprotocol IHandler
   (run [_ args])
   (state [_]))
 
 (defmacro run-async
-  [h & args]
+  [executor h & args]
   `(let [runnable# (fn [] (run ~h ~@args))]
-     (.execute executor runnable#)))
+     (.submit ~executor runnable#)))
 
-;; state is atom, handler is fn
+(defn- collect-garbage
+  "As we may potentially accumulate rather large amount of futures, we have to garbage-collect them."
+  [futures]
+  (filter #(not (.isDone %)) futures))
+
 (deftype Handler [handler state_]
   IHandler
   (run [_ args]
     (swap! state_ handler args))
+
   (state [_]
-    state_)
+    @state_)
 
   Object
   (toString [_]
@@ -49,7 +71,9 @@ Handler state is stored in atom, that is first initialized with `initial-state`.
 (deftype StatelessHandler [handler]
   IHandler
   (run [_ args]
-    (handler args)))
+    (handler args))
+  (state [_]
+    nil))
 
 (defn- get-handlers
   [t handlers]
@@ -61,9 +85,9 @@ Handler state is stored in atom, that is first initialized with `initial-state`.
                               (fn [v]
                                 (if (nil? v)
                                   #{handler}
-                                  (conj v handler)))
-                              )))
-(deftype Emitter [handlers]
+                                  (conj v handler))))))
+
+(deftype Emitter [handlers futures executor]
   IEmitter
   (add-handler [_ event-type f initial-state]
     (add-handler-intern handlers event-type (Handler. f (atom initial-state))))
@@ -79,7 +103,14 @@ Handler state is stored in atom, that is first initialized with `initial-state`.
 
   (notify [_ t args]
     (doseq [h (get-handlers t @handlers)]
-      (run-async h args)))
+      (swap! futures conj (run-async executor h args)))
+    (swap! futures collect-garbage))
+
+  (flush-futures [_]
+    (doseq [future @futures] (if-not (.isDone future) (.get future))))
+
+  ;; TODO: we may want to add third function, which is dispatching all given handlers in
+  ;; parallel, although waits for _all_ of them, rather than _each one_ of them to complete
 
   (sync-notify [_ t args]
     (doseq [h (get-handlers t @handlers)]
@@ -98,5 +129,6 @@ Handler state is stored in atom, that is first initialized with `initial-state`.
     (str "Handlers: " (mapv #(.toString %) @handlers))))
 
 (defn new-emitter
+  "Creates a fresh Event Emitter with a default executor (Fixed Thread Pool, with pool size of `available processors + 1"
   []
-  (Emitter. (atom {})))
+  (Emitter. (atom {}) (atom []) (make-executor)))
