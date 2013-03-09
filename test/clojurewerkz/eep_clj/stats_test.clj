@@ -48,4 +48,18 @@
       (enqueue mw 81)
       (tick mw)
       (is (= 31 (:mean @last-val)))))
-  )
+
+  (testing "Tumbling window"
+    (let [last-val (atom nil)
+          swapper (fn [v]
+                    (reset! last-val v))
+          tw (tumbling-window (make-mean) 2 swapper)]
+      (enqueue tw 1)
+      (enqueue tw 2)
+      (is (= 1.5 (* 1.0 (:mean @last-val))))
+      (enqueue tw 3)
+      (enqueue tw 4)
+      (is (= 3.5 (* 1.0 (:mean @last-val))))
+      (enqueue tw 5)
+      (enqueue tw 6)
+      (is (= 5.5 (* 1.0 (:mean @last-val)))))))
