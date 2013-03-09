@@ -21,7 +21,7 @@
 (defprotocol Stat
   (title [_])
   (accumulate [this _])
-  (compensate [this])
+  (compensate [this _])
   (emit [this]))
 
 (deftype Count [val]
@@ -31,7 +31,7 @@
   (accumulate [_ _]
     (Count. (inc val)))
 
-  (compensate [_]
+  (compensate [_ _]
     (Count. (dec val)))
 
   (emit [_]
@@ -45,9 +45,38 @@
   (toString [_]
     (str val)))
 
+(deftype Mean [mean c d]
+  Stat
+  (title [_] :mean)
+
+  (accumulate [_ new-val]
+    (let [new-c (inc c)
+          new-d (- new-val mean)]
+      (Mean. (+ mean (/ new-d new-c)) new-c new-d)))
+
+  (compensate [_ new-val]
+    (let [new-c (dec c)
+          new-d (- mean new-val)]
+      (Mean. (+ mean (/ new-d new-c)) new-c new-d)))
+
+  (emit [_]
+    mean)
+
+  Resetable
+  (reset [_]
+    (Mean. 0 0 0))
+
+  Object
+  (toString [_]
+    (str mean)))
+
 (defn make-count
-  [val]
-  (Count. val))
+  []
+  (Count. 0))
+
+(defn make-mean
+  []
+  (Mean. 0 0 0))
 
 (deftype CountingClock [at mark]
   Clock
