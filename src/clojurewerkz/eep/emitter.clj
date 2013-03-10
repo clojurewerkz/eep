@@ -5,9 +5,10 @@
 
 (def global-handler :___global)
 
-(def pool-size (-> (Runtime/getRuntime)
-                   (.availableProcessors)
-                   inc))
+(def ^{:doc "Default thread pool size, calculated as # available processors + 1"}
+  pool-size (-> (Runtime/getRuntime)
+                .availableProcessors
+                inc))
 
 (defn make-executor
   []
@@ -129,6 +130,6 @@ handlers (both stateful and stateless), waits until each handler completes synch
     (str "Handlers: " (mapv #(.toString %) @handlers))))
 
 (defn new-emitter
-  "Creates a fresh Event Emitter with a default executor (Fixed Thread Pool, with pool size of `available processors + 1"
+  "Creates a fresh Event Emitter with the default executor."
   []
   (Emitter. (atom {}) (atom []) (make-executor)))

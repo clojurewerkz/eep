@@ -5,8 +5,7 @@
   (at [_])
   (increment [_])
   (ticked? [_])
-  (expired? [_])
-  )
+  (expired? [_]))
 
 (defprotocol IWindow
   (enqueue [_ v])
@@ -96,8 +95,7 @@
 
   Object
   (toString [_]
-    (str "At: " at ", Mark: " mark))
-  )
+    (str "At: " at ", Mark: " mark)))
 
 (defn- now
   "java.util.Date resolution is not enough for the Clock, as enqueue that's fired exactly after clock creation will
@@ -167,10 +165,7 @@
         (emitter/flush-futures e)
         (emitter/sync-notify e :emit (map emitter/state (emitter/which-handlers e :aggregate)))
         (emitter/sync-notify e :clock reset)
-        (emitter/sync-notify e :aggregate [reset])
-        )
-      )
-    )
+        (emitter/sync-notify e :aggregate [reset]))))
 
   Object
   (toString [this]
@@ -209,8 +204,7 @@
       (emitter/flush-futures e)
       (emitter/sync-notify e :emit (map emitter/state (emitter/which-handlers e :aggregate)))
       (emitter/sync-notify e :aggregate [reset])
-      (emitter/sync-notify e :count [reset])
-      )))
+      (emitter/sync-notify e :count [reset]))))
 
 (defn aggregate-wrap
   [prev [f v]]
@@ -222,7 +216,7 @@
   [a b]
   (b a))
 
-;; TODO: Add multiple aggregates opportunity
+;; TODO: Add multiple aggregates
 (defn monotonic-window
   "Creates new monotonic window. "
   [aggregate clock h]
