@@ -13,7 +13,7 @@ eep-clj is heavily influenced by other EEP projects:
 
 ## Project Maturity
 
-EEP is a very young project. Nothing is considered stable or final.
+EEP is a *very young* project. Nothing is considered stable or final.
 
 
 
@@ -24,7 +24,7 @@ EEP is built from the ground up for Clojure 1.4 and up.
 
 ## Maven Artifacts
 
-### The Latest Release
+### Snapshots
 
 With Leiningen:
 
