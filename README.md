@@ -1,32 +1,58 @@
-# Clojure Embedded Event Processing
+# EEP, Embedded Event Processing in Clojure
 
-eep-clj consists of two parts first one is a lightweight generic Event Handling system,
-and second one is windowed steam operations.
+eep-clj 
 
-eep-clj have started as an initiative after other EEP projects:
+It combines a lightweight generic event handling system,
+and with multiple windowed stream operations.
 
-  * [eep-js (JavaScript)](https://github.com/darach/eep-erl)
+eep-clj is heavily influenced by other EEP projects:
+
+  * [eep-js (JavaScript)](https://github.com/darach/eep-js)
   * [eep-erl (Erlang)](https://github.com/darach/eep-erl)
   * [eep-php (PHP)](https://github.com/ianbarber/eep-php)
 
-# Project status
+## Project Maturity
 
-This is a thought experiment, API can change at any moment. Nothing is considered stable
-or final. We keep modifying, improving things in order to provide best, Clojuric way to
-handle events and streams.
-
-# Event Emitter
-
-Idea and API of Event Emitter was inspired by Erlang [gen_event behavior](http://www.erlang.org/doc/man/gen_event.html)
-
-Event order is guaranteed. In order to verify that all the pending operations are done by certain point,
-you can use `flush-futures` function. It's a synchronous operation, and may take an unpredictable amount
-of time, depending on the contention.
+EEP is a very young project. Nothing is considered stable or final.
 
 
-## Usage
 
-FIXME
+## Supported Clojure Versions
+
+EEP is built from the ground up for Clojure 1.3 and up.
+
+
+## Maven Artifacts
+
+### The Latest Release
+
+With Leiningen:
+
+    [clojurewerkz/eep "0.1.0-SNAPSHOT"]
+
+With Maven:
+
+    <dependency>
+      <groupId>clojurewerkz</groupId>
+      <artifactId>eep</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+    </dependency>
+
+
+## Documentation & Examples
+
+Documentation site is not ready yet.
+
+
+## Development
+
+EEP uses [Leiningen 2](https://github.com/technomancy/leiningen/blob/master/doc/TUTORIAL.md). Make
+sure you have it installed and then run tests against all supported Clojure versions using
+
+    lein2 all test
+
+Then create a branch and make your changes on it. Once you are done with your changes and all
+tests pass, submit a pull request on Github.
 
 ## License
 
