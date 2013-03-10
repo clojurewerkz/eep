@@ -1,7 +1,6 @@
 # EEP, Embedded Event Processing in Clojure
 
-eep-clj 
-
+EEP is a Clojure library for embedded event processing.
 It combines a lightweight generic event handling system,
 and with multiple windowed stream operations.
 
@@ -10,6 +9,7 @@ eep-clj is heavily influenced by other EEP projects:
   * [eep-js (JavaScript)](https://github.com/darach/eep-js)
   * [eep-erl (Erlang)](https://github.com/darach/eep-erl)
   * [eep-php (PHP)](https://github.com/ianbarber/eep-php)
+
 
 ## Project Maturity
 
