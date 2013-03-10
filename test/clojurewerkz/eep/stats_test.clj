@@ -1,6 +1,6 @@
-(ns clojurewerkz.eep-clj.stats-test
+(ns clojurewerkz.eep.stats-test
   (:use clojure.test
-        clojurewerkz.eep-clj.stats))
+        clojurewerkz.eep.stats))
 
 (deftest test-monotonic-window
   (testing "Monotonic window with count"

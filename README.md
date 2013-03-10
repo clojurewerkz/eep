@@ -19,7 +19,7 @@ EEP is a very young project. Nothing is considered stable or final.
 
 ## Supported Clojure Versions
 
-EEP is built from the ground up for Clojure 1.3 and up.
+EEP is built from the ground up for Clojure 1.4 and up.
 
 
 ## Maven Artifacts

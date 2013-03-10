@@ -1,7 +1,7 @@
-(ns ^{:doc "Event Emitter, right now it's a poor man's clone of "}
-  clojurewerkz.eep-clj.emitter
+(ns ^{:doc "Generic event emitter implementation heavily inspired by gen_event in Erlang/OTP"}
+  clojurewerkz.eep.emitter
   (:require [clojure.set :as clj-set])
-  (:import [java.util.concurrent Executors]))
+  (:import java.util.concurrent.Executors))
 
 (def global-handler :___global)
 
@@ -98,8 +98,8 @@ handlers (both stateful and stateless), waits until each handler completes synch
   (delete-handler [_ event-type f]
     (swap! handlers (fn [h]
                       (update-in h [event-type]
-                                   (fn [v]
-                                     (disj v (first (filter #(= f (.handler %)) v))))))))
+                                 (fn [v]
+                                   (disj v (first (filter #(= f (.handler %)) v))))))))
 
   (notify [_ t args]
     (doseq [h (get-handlers t @handlers)]

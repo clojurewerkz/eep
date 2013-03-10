@@ -1,5 +1,5 @@
-(ns clojurewerkz.eep-clj.stats
-  (:require [clojurewerkz.eep-clj.emitter :as emitter]))
+(ns clojurewerkz.eep.stats
+  (:require [clojurewerkz.eep.emitter :as emitter]))
 
 (defprotocol Clock
   (at [_])

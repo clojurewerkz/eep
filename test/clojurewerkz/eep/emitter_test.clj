@@ -1,6 +1,6 @@
-(ns clojurewerkz.eep-clj.emitter-test
+(ns clojurewerkz.eep.emitter-test
   (:use clojure.test
-        clojurewerkz.eep-clj.emitter))
+        clojurewerkz.eep.emitter))
 
 (deftest a-test
   (let [emitter (new-emitter)]
