@@ -28,7 +28,7 @@ EEP is built from the ground up for Clojure 1.4 and up.
 
 With Leiningen:
 
-    [clojurewerkz/eep "0.1.0-SNAPSHOT"]
+    [clojurewerkz/eep "0.1.0"]
 
 With Maven:
 
