@@ -1,12 +1,15 @@
 (ns clojurewerkz.eep.stats-test
   (:use clojure.test
-        clojurewerkz.eep.stats))
+        clojurewerkz.eep.core
+        clojurewerkz.eep.windows)
+  (:require [clojurewerkz.eep.stats :as s]
+            [clojurewerkz.eep.clocks :as c]))
 
 (deftest test-monotonic-window
   (testing "Monotonic window with count"
     (let [last-val (atom nil)
           swapper (fn [v] (reset! last-val v))
-          mw (monotonic-window (make-count) (make-wall-clock 0 nil) swapper)]
+          mw (monotonic-window (s/make-count) (c/make-wall-clock) swapper)]
       (enqueue mw 5)
       (tick mw)
       (is (= 1 (:count @last-val)))
@@ -33,7 +36,7 @@
     (let [last-val (atom nil)
           swapper (fn [v]
                     (reset! last-val v))
-          mw (monotonic-window (make-mean) (make-wall-clock 0 nil) swapper)]
+          mw (monotonic-window (s/make-mean) (c/make-wall-clock) swapper)]
       (enqueue mw 5)
       (tick mw)
       (is (= 5 (:mean @last-val)))
@@ -53,7 +56,7 @@
     (let [last-val (atom nil)
           swapper (fn [v]
                     (reset! last-val v))
-          tw (tumbling-window (make-mean) 2 swapper)]
+          tw (tumbling-window (s/make-mean) 2 swapper)]
       (enqueue tw 1)
       (enqueue tw 2)
       (is (= 1.5 (* 1.0 (:mean @last-val))))
