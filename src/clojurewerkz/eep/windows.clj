@@ -43,22 +43,70 @@
     (.toString e)))
 
 
+(defn- get-first-of-type
+  [e t]
+  (emit (emitter/state (first (emitter/which-handlers e t)))))
+
 (defn- get-count
   [e]
-  (emitter/state (first (emitter/which-handlers e :count))))
+  (get-first-of-type e :count))
 
 (deftype TumblingWindow [e size]
   IWindow
   (enqueue [_ v]
     (emitter/notify e :aggregate [accumulate v])
     (emitter/sync-notify e :count [accumulate v])
-    (when (= size (emit (get-count e)))
+    (when (= size (get-count e))
       (emitter/flush-futures e)
       (emitter/sync-notify e :emit (map emitter/state (emitter/which-handlers e :aggregate)))
       (emitter/sync-notify e :aggregate [reset])
       (emitter/sync-notify e :count [reset]))))
 
+(deftype Buffer [val]
+  Stat
+  (title [_] :buffer)
 
+  (accumulate [a [index new-val]]
+    (Buffer. (assoc val index new-val)))
+
+  (compensate [_ _] nil)
+
+  (emit [_]
+    val))
+
+(defn make-buffer
+  [size]
+  (Buffer. (apply vector (take size (repeat nil)))))
+
+(deftype SlidingWindow [e size]
+  IWindow
+  (enqueue [_ v]
+    (emitter/notify e :aggregate [accumulate v])
+    (let [idx (get-count e)]
+      (if (>= idx (dec size))
+        (do
+          (emitter/flush-futures e)
+          (emitter/sync-notify e :emit (map emitter/state (emitter/which-handlers e :aggregate)))
+          (emitter/notify e :aggregate [compensate (get (get-first-of-type e :buffer) (mod (inc idx) size))])
+          (emitter/notify e :buffer [accumulate [(mod idx size) v]]))
+        (emitter/notify e :buffer [accumulate [idx v]])))
+    (emitter/sync-notify e :count [accumulate v])
+    )
+  )
+
+(defn sliding-window
+  [aggregate h size]
+  (let [e (emitter/new-emitter)]
+    (emitter/add-handler e :aggregate aggregate-wrap aggregate)
+    (emitter/add-handler e :count aggregate-wrap (make-count))
+    (emitter/add-handler e :buffer aggregate-wrap (make-buffer size))
+    (emitter/add-handler e :emit #(if-not (empty? %)
+                                    (h
+                                     (into {} (for [i %]
+                                                (let [stat i]
+                                                  [(title stat) (emit stat)]))))))
+    (SlidingWindow. e size)
+    ))
 ;;
 ;; API
 ;;

@@ -5,6 +5,7 @@
   (:require [clojurewerkz.eep.stats :as s]
             [clojurewerkz.eep.clocks :as c]))
 
+;; TODO: REUSE EXECUTOR IN TEST MODE
 (deftest test-monotonic-window
   (testing "Monotonic window with count"
     (let [last-val (atom nil)
@@ -65,4 +66,32 @@
       (is (= 3.5 (* 1.0 (:mean @last-val))))
       (enqueue tw 5)
       (enqueue tw 6)
-      (is (= 5.5 (* 1.0 (:mean @last-val)))))))
+      (is (= 5.5 (* 1.0 (:mean @last-val))))))
+
+  (testing "Sliding window"
+    (let [last-val (atom nil)
+          swapper (fn [v]
+                    (reset! last-val v))
+          tw (sliding-window (s/make-mean) swapper 2)]
+      (enqueue tw 1)
+      (enqueue tw 2)
+      (is (= 1.5 (* 1.0 (:mean @last-val))))
+      (enqueue tw 3)
+      (enqueue tw 4)
+      (is (= 3.5 (* 1.0 (:mean @last-val))))
+      (enqueue tw 5)
+      (enqueue tw 6)
+      (is (= 5.5 (* 1.0 (:mean @last-val)))))
+    (let [last-val (atom nil)
+          swapper (fn [v]
+                    (reset! last-val v))
+          tw (sliding-window (s/make-mean) swapper 3)]
+      (enqueue tw 1)
+      (enqueue tw 2)
+      (enqueue tw 3)
+      (is (= 2.0 (* 1.0 (:mean @last-val))))
+      (enqueue tw 4)
+      (enqueue tw 5)
+      (is (= 4.0 (* 1.0 (:mean @last-val))))
+      (enqueue tw 6)
+      (is (= 5.0 (* 1.0 (:mean @last-val)))))))
