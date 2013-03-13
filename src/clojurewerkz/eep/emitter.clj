@@ -29,13 +29,18 @@ second one is a new value. Function return becomes a new Handler state.
 `(f handler-state)` is a function of 1 argument, that's used to add a Stateless Handler,
 potentially having side-effects. By enclosing emitter you can achieve capturing state of all
 or any handlers.")
+  ;; TODO: add optional metadata to handlers, that may serve as an ability to remove handlers when
+  ;; handler function auto-generated
   (delete-handler [_ t f] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
+  (delete-handler-by [_ t f] "Removes the handler using the matcher function `f`.")
   (which-handlers [_] [_ t] "Returns all currently registered Handlers for Emitter")
   (flush-futures [_] "Under some circumstances, you may want to make sure that all the pending tasks
 are executed by some point. By calling `flush-futures`, you force-complete all the pending tasks.")
   (notify [_ type args] "Asynchronous (default) event dispatch function. All the Handlers (both
-stateful and stateless).")
+stateful and stateless). Pretty much direct routing.")
+  (notify-some [_ type-checker args] "Asynchronous notification, with function that matches an event type.
+Pretty much topic routing.")
   (! [_ type args] "Erlang-style alias for `notify`")
   (sync-notify [_ type args] "Synchronous event dispatch function. Dispatches an event to all the
 handlers (both stateful and stateless), waits until each handler completes synchronously.")
@@ -78,7 +83,7 @@ handlers (both stateful and stateless), waits until each handler completes synch
 
 (defn- get-handlers
   [t handlers]
-  (clj-set/union (t handlers) (global-handler handlers)))
+  (clj-set/union (get-in handlers [t]) (global-handler handlers)))
 
 (defn- add-handler-intern
   [handlers event-type handler]
@@ -87,6 +92,12 @@ handlers (both stateful and stateless), waits until each handler completes synch
                                 (if (nil? v)
                                   #{handler}
                                   (conj v handler))))))
+
+(defn- delete-handler-intern
+  [handlers event-type matcher]
+  (swap! handlers #(update-in % [event-type]
+                              (fn [v]
+                                (apply disj v (filter matcher v))))))
 
 (deftype Emitter [handlers futures executor]
   IEmitter
@@ -97,10 +108,10 @@ handlers (both stateful and stateless), waits until each handler completes synch
     (add-handler-intern handlers event-type (StatelessHandler. f)))
 
   (delete-handler [_ event-type f]
-    (swap! handlers (fn [h]
-                      (update-in h [event-type]
-                                 (fn [v]
-                                   (disj v (first (filter #(= f (.handler %)) v))))))))
+    (delete-handler-intern handlers event-type #(= f (.handler %))))
+
+  (delete-handler-by [_ event-type f]
+    (delete-handler-intern handlers event-type f))
 
   (notify [_ t args]
     (doseq [h (get-handlers t @handlers)]
