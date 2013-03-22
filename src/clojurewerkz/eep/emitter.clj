@@ -33,6 +33,7 @@ or any handlers.")
   ;; handler function auto-generated
   (delete-handler [_ t f] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
+  (delete-all [_ t] "Removes all handlers for given type.")
   (delete-handler-by [_ t f] "Removes the handler using the matcher function `f`.")
   (which-handlers [_] [_ t] "Returns all currently registered Handlers for Emitter")
   (flush-futures [_] "Under some circumstances, you may want to make sure that all the pending tasks
@@ -112,6 +113,7 @@ handlers (both stateful and stateless), waits until each handler completes synch
 
   (delete-handler-by [_ event-type f]
     (delete-handler-intern handlers event-type f))
+
 
   (notify [_ t args]
     (doseq [h (get-handlers t @handlers)]
