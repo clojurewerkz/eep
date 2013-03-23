@@ -1,71 +1,66 @@
-(ns clojurewerkz.eep.clocks
-  (:use clojurewerkz.eep.core))
+(ns clojurewerkz.eep.clocks)
 
-(deftype CountingClock [at mark]
+(defprotocol Clock
+  (time [_])
+  (elapsed? [_])
+  (reset [_])
+  (tick [_] ""))
+
+(deftype CountingClock [initial period current]
   Clock
-  (at [_]
-    at)
-  (increment [_]
-    (CountingClock. (inc at) mark))
+  (time [_]
+    current)
 
-  (ticked? [_]
-    (>= (- at mark) 1))
+  (elapsed? [_]
+    (>= (- current initial) period))
 
-  Ticking
-  (tick [this]
-    (if (nil? mark)
-      (CountingClock. at (inc at))
-      this))
+  (tick [_]
+    (CountingClock. initial period (inc current)))
+
+  (reset [_]
+    (CountingClock. current period current))
 
   Object
   (toString [_]
-    (str "At: " at ", Mark: " mark)))
+    (str "Initial: " initial ", Period: " period ", Current:" current)))
 
 (defn- now
   "java.util.Date resolution is not enough for the Clock, as enqueue that's fired exactly after clock creation will
   produce a tick that yields same exact time."
   []
-  (System/nanoTime))
+  (System/currentTimeMillis)
+;;  (System/nanoTime)
+  )
 
-(deftype WallClock [initial interval at mark]
+(deftype WallClock [initial period current]
   Clock
-  (at [_]
-    at)
+  (time [_]
+    current)
 
-  (increment [_]
-    (WallClock. initial interval (now) mark))
+  (elapsed? [_]
+    (>= (- current initial) period))
 
-  (ticked? [_]
-    (>= (- at mark) interval))
-
-  (expired? [_]
-    (>= (- at initial) 1))
-
-  Resetable
-  (reset [_]
-    (WallClock. (now) interval at nil))
-
-  ;; Tock is not necessary, either. Mostly because we can tick twice, as we don't have shared mutable state
-  ;; (tock [this elapsed]
-  ;;   (if elapsed
-  ;;     (WallClock. initial interval at (+ mark interval))))
-
-
-  Ticking
   (tick [this]
-    (if (nil? mark)
-      (WallClock. initial interval at (+ at interval))
-      this))
+    (WallClock. initial period (now)))
 
+  (reset [_]
+    (WallClock. (now) period (now)))
 
   Object
   (toString [_]
-    (str "At: " at ", Mark: " mark)))
+    (str "Initial: " initial ", Period: " period ", Current:" current)))
 
 (defn make-counting-clock
-  []
-  (CountingClock. 0 0))
+  [period]
+  (CountingClock. 0 period 0))
 
 (defn make-wall-clock
-  []
-  (WallClock. (now) 0 (now) nil))
+  [period]
+  (WallClock. (now) period (now)))
+
+(def period
+  {:second 1000
+   :minute (* 60 1000)
+   :hour (* 60 60 1000)
+   :day (* 24 60 60 1000)
+   :week (* 24 60 60 1000)})

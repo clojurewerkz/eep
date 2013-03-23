@@ -1,8 +1,7 @@
 (ns clojurewerkz.eep.windows
-  (:use clojurewerkz.eep.core
-        clojurewerkz.eep.clocks
-        clojurewerkz.eep.stats)
-  (:require [clojurewerkz.eep.emitter :as emitter]))
+  (:require [clojurewerkz.eep.clocks :as clocks]
+            [com.ifesdjeen.utils.circular-buffer :as cb])
+)
 
 ;;
 ;; Implementation
@@ -18,136 +17,31 @@
   [a b]
   (b a))
 
-(deftype MonotonicWindow [e]
-  IWindow
-  (enqueue [_ v]
-    (emitter/notify e :aggregate [accumulate v])
-    (emitter/sync-notify e :clock increment))
+(defn sliding-window-simple
+  [size aggregate emit-fn]
+  (let [buffer (atom (cb/circular-buffer size))]
+    (fn [value]
+      (swap! buffer conj value)
+      (when (cb/full? @buffer)
+        (emit-fn (aggregate @buffer))))))
 
-  (clock [_]
-    (emitter/state (first (emitter/which-handlers e :clock))))
+(defn tumbling-window-simple
+  [size aggregate emit-fn]
+  (let [buffer (atom (cb/circular-buffer size))]
+    (fn [value]
+      (swap! buffer conj value)
+      (when (cb/full? @buffer)
+        (emit-fn (aggregate @buffer))
+        (reset! buffer (cb/circular-buffer size))))))
 
-  Ticking
-  (tick [this]
-    (emitter/sync-notify e :clock tick)
-    (when (ticked? (.clock this))
-      (emitter/sync-notify e :clock tick)
-      (when (expired? (.clock this))
-        (emitter/flush-futures e)
-        (emitter/sync-notify e :emit (map emitter/state (emitter/which-handlers e :aggregate)))
-        (emitter/sync-notify e :clock reset)
-        (emitter/sync-notify e :aggregate [reset]))))
-
-  Object
-  (toString [this]
-    (.toString e)))
-
-
-(defn- get-first-of-type
-  [e t]
-  (emit (emitter/state (first (emitter/which-handlers e t)))))
-
-(defn- get-count
-  [e]
-  (get-first-of-type e :count))
-
-(deftype TumblingWindow [e size]
-  IWindow
-  (enqueue [_ v]
-    (emitter/notify e :aggregate [accumulate v])
-    (emitter/sync-notify e :count [accumulate v])
-    (when (= size (get-count e))
-      (emitter/flush-futures e)
-      (emitter/sync-notify e :emit (map emitter/state (emitter/which-handlers e :aggregate)))
-      (emitter/sync-notify e :aggregate [reset])
-      (emitter/sync-notify e :count [reset]))))
-
-(deftype Buffer [val]
-  Stat
-  (title [_] :buffer)
-
-  (accumulate [a [index new-val]]
-    (Buffer. (assoc val index new-val)))
-
-  (compensate [_ _] nil)
-
-  (emit [_]
-    val))
-
-(defn make-buffer
-  [size]
-  (Buffer. (apply vector (take size (repeat nil)))))
-
-(deftype SlidingWindow [e size]
-  IWindow
-  (enqueue [_ v]
-    (emitter/notify e :aggregate [accumulate v])
-    (let [idx (get-count e)]
-      (if (>= idx (dec size))
-        (do
-          (emitter/flush-futures e)
-          (emitter/sync-notify e :emit (map emitter/state (emitter/which-handlers e :aggregate)))
-          (emitter/notify e :aggregate [compensate (get (get-first-of-type e :buffer) (mod (inc idx) size))])
-          (emitter/notify e :buffer [accumulate [(mod idx size) v]]))
-        (emitter/notify e :buffer [accumulate [idx v]])))
-    (emitter/sync-notify e :count [accumulate v])
-    )
-  )
-
-(defn sliding-window
-  [aggregate h size]
-  (let [e (emitter/new-emitter)]
-    (emitter/add-handler e :aggregate aggregate-wrap aggregate)
-    (emitter/add-handler e :count aggregate-wrap (make-count))
-    (emitter/add-handler e :buffer aggregate-wrap (make-buffer size))
-    (emitter/add-handler e :emit #(if-not (empty? %)
-                                    (h
-                                     (into {} (for [i %]
-                                                (let [stat i]
-                                                  [(title stat) (emit stat)]))))))
-    (SlidingWindow. e size)
-    ))
-;;
-;; API
-;;
-
-;; TODO: Add multiple aggregates
-(defn monotonic-window
-  "Creates new monotonic window. "
-  [aggregate clock h]
-  (let [e (emitter/new-emitter)]
-    (emitter/add-handler e :aggregate aggregate-wrap aggregate)
-    (emitter/add-handler e :clock tick-wrap clock)
-    (emitter/add-handler e :emit #(if-not (empty? %)
-                                    (h
-                                     (into {} (for [i %]
-                                                (let [stat i]
-                                                  [(title stat) (emit stat)]))))))
-    (MonotonicWindow. e)))
-
-(defn periodic-window
-  "Creates new periodic window. "
-  [aggregate h]
-  (let [clock (make-wall-clock)
-        e (emitter/new-emitter)]
-    (emitter/add-handler e :aggregate aggregate-wrap aggregate)
-    (emitter/add-handler e :clock tick-wrap clock)
-    (emitter/add-handler e :emit #(if-not (empty? %)
-                                    (h
-                                     (into {} (for [i %]
-                                                (let [stat i]
-                                                  [(title stat) (emit stat)]))))))
-    (MonotonicWindow. e)))
-
-(defn tumbling-window
-  "Creates new tumbling window. "
-  [aggregate max-count h]
-  (let [e (emitter/new-emitter)]
-    (emitter/add-handler e :aggregate aggregate-wrap aggregate)
-    (emitter/add-handler e :count aggregate-wrap (make-count))
-    (emitter/add-handler e :emit #(if-not (empty? %)
-                                    (h
-                                     (into {} (for [i %]
-                                                (let [stat i]
-                                                  [(title stat) (emit stat)]))))))
-    (TumblingWindow. e max-count)))
+(defn monotonic-window-simple
+  [clock-orig aggregate emit-fn]
+  (let [clock (atom clock-orig)
+        buffer (atom [])]
+    (fn [value]
+      (swap! buffer conj value)
+      (swap! clock clocks/tick)
+      (when (clocks/elapsed? @clock)
+        (emit-fn (aggregate @buffer))
+        (reset! buffer [])
+        (swap! clock clocks/reset)))))
