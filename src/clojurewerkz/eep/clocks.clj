@@ -12,7 +12,7 @@
     current)
 
   (elapsed? [_]
-    (>= (- current initial) period))
+    (> (- current initial) period))
 
   (tick [_]
     (CountingClock. initial period (inc current)))
@@ -49,6 +49,7 @@
   Object
   (toString [_]
     (str "Initial: " initial ", Period: " period ", Current:" current)))
+
 
 (defn make-counting-clock
   [period]
