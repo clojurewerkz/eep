@@ -9,6 +9,8 @@
   [buffer]
   (apply + buffer))
 
+(def timespan 10)
+
 (deftest simple-sliding-window-test
   (let [last-val (atom nil)
         window (sliding-window-simple 5 sum #(reset! last-val %))]
@@ -52,23 +54,27 @@
     (window 1)
     (window 1)
     (window 1)
-    (is (= 5 @last-val))
+    (is (= nil @last-val))
     (window 1)
     (is (= 5 @last-val)))
 
   (let [last-val (atom nil)
-        window (monotonic-window-simple (c/make-wall-clock 1000) sum #(reset! last-val %))]
+        window (monotonic-window-simple (c/make-wall-clock timespan) sum #(reset! last-val %))]
     (is (nil? @last-val))
     (window 1)
     (is (nil? @last-val))
     (window 1)
     (window 1)
     (window 1)
-    (Thread/sleep 1000)
+    (Thread/sleep timespan)
     (window 1)
-    (is (= 5 @last-val))
+    (is (= 4 @last-val))
     (window 1)
-    (is (= 5 @last-val))))
+    (is (= 4 @last-val))
+
+    (Thread/sleep timespan)
+    (window 1)
+    (is (= 2 @last-val))))
 
 (deftest emitter-sliding-window-test
   (let [emitter (e/new-emitter)
@@ -126,14 +132,15 @@
     (e/notify emitter :monotonic-summing-window 1)
     (e/notify emitter :monotonic-summing-window 1)
     (e/flush-futures emitter)
-    (is (= 5 @last-val))
+    ;; Counting clock should be elapsed only after 5 ticks
+    (is (= nil @last-val))
     (e/notify emitter :monotonic-summing-window 1)
     (e/flush-futures emitter)
     (is (= 5 @last-val)))
 
   (let [emitter (e/new-emitter)
         last-val (atom nil)
-        window (monotonic-window-simple (c/make-wall-clock 1000) sum #(reset! last-val %))]
+        window (monotonic-window-simple (c/make-wall-clock timespan) sum #(reset! last-val %))]
     (e/add-handler emitter :monotonic-summing-window window)
     (is (nil? @last-val))
     (e/notify emitter :monotonic-summing-window 1)
@@ -141,10 +148,34 @@
     (e/notify emitter :monotonic-summing-window 1)
     (e/notify emitter :monotonic-summing-window 1)
     (e/notify emitter :monotonic-summing-window 1)
-    (Thread/sleep 1000)
+    (Thread/sleep timespan)
     (e/notify emitter :monotonic-summing-window 1)
     (e/flush-futures emitter)
-    (is (= 5 @last-val))
+    (is (= 4 @last-val))
     (e/notify emitter :monotonic-summing-window 1)
     (e/flush-futures emitter)
-    (is (= 5 @last-val))))
+    (is (= 4 @last-val))
+    (Thread/sleep timespan)
+    (e/notify emitter :monotonic-summing-window 1)
+    (e/flush-futures emitter)
+    (is (= 2 @last-val))))
+
+
+(deftest emitter-timed-window-test
+  (let [emitter (e/new-emitter)
+        last-val (atom nil)
+        window (timed-window-simple (c/make-wall-clock timespan) timespan sum #(reset! last-val %))]
+    (e/add-handler emitter :timed-summing-window window)
+    (is (nil? @last-val))
+    (e/notify emitter :timed-summing-window 1)
+    (is (nil? @last-val))
+    (e/notify emitter :timed-summing-window 1)
+    (e/notify emitter :timed-summing-window 1)
+    (e/notify emitter :timed-summing-window 1)
+    (Thread/sleep timespan)
+    (is (= 4 @last-val))
+
+    (e/notify emitter :timed-summing-window 1)
+    (e/notify emitter :timed-summing-window 1)
+    (Thread/sleep 15)
+    (is (= 2 @last-val))))
