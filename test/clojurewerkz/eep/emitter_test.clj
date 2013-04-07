@@ -1,6 +1,9 @@
 (ns clojurewerkz.eep.emitter-test
   (:use clojure.test
-        clojurewerkz.eep.emitter))
+        clojurewerkz.eep.emitter)
+  (:require [clojurewerkz.eep.stats :as stats]
+            [clojurewerkz.eep.windows :as windows]
+            [clojurewerkz.eep.clocks :as clocks]))
 
 (deftest t-add-handler
   (let [emitter (new-emitter)]

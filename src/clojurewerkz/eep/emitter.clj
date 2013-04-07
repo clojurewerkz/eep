@@ -29,11 +29,17 @@ second one is a new value. Function return becomes a new Handler state.
 `(f handler-state)` is a function of 1 argument, that's used to add a Stateless Handler,
 potentially having side-effects. By enclosing emitter you can achieve capturing state of all
 or any handlers.")
+  (add-observer [_ t f])
+  (delete-observer [_ t f])
+  (delete-observers [_ t])
+
+  (handler-registered? [_ t f])
+
   ;; TODO: add optional metadata to handlers, that may serve as an ability to remove handlers when
   ;; handler function auto-generated
   (delete-handler [_ t f] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
-  (delete-all [_ t] "Removes all handlers for given type.")
+  (delete-handlers [_ t] "Removes all handlers for given type.")
   (delete-handler-by [_ t f] "Removes the handler using the matcher function `f`.")
   (which-handlers [_] [_ t] "Returns all currently registered Handlers for Emitter")
   (flush-futures [_] "Under some circumstances, you may want to make sure that all the pending tasks
@@ -107,6 +113,9 @@ handlers (both stateful and stateless), waits until each handler completes synch
 
   (add-handler [_ event-type f]
     (add-handler-intern handlers event-type (StatelessHandler. f)))
+
+  (delete-handlers [_ event-type]
+    (swap! dissoc handlers event-type))
 
   (delete-handler [_ event-type f]
     (delete-handler-intern handlers event-type #(= f (.handler %))))
