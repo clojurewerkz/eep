@@ -80,7 +80,7 @@
   (let [emitter (e/new-emitter)
         last-val (atom nil)
         window (sliding-window-simple 5 sum #(reset! last-val %))]
-    (e/add-handler emitter :sliding-summing-window window)
+    (register-window emitter :sliding-summing-window window)
     (e/notify emitter :sliding-summing-window 1)
     (e/notify emitter :sliding-summing-window 2)
     (e/notify emitter :sliding-summing-window 3)
@@ -99,7 +99,7 @@
   (let [emitter (e/new-emitter)
         last-val (atom nil)
         window (tumbling-window-simple 5 sum #(reset! last-val %))]
-    (e/add-handler emitter :tumbling-summing-window window)
+    (register-window emitter :tumbling-summing-window window)
     (is (nil? @last-val))
     (e/notify emitter :tumbling-summing-window 1)
     (e/notify emitter :tumbling-summing-window 2)
@@ -123,7 +123,7 @@
   (let [emitter (e/new-emitter)
         last-val (atom nil)
         window (monotonic-window-simple (c/make-counting-clock 5) sum #(reset! last-val %))]
-    (e/add-handler emitter :monotonic-summing-window window)
+    (register-window emitter :monotonic-summing-window window)
     (is (nil? @last-val))
     (e/notify emitter :monotonic-summing-window 1)
     (is (nil? @last-val))
@@ -141,7 +141,7 @@
   (let [emitter (e/new-emitter)
         last-val (atom nil)
         window (monotonic-window-simple (c/make-wall-clock timespan) sum #(reset! last-val %))]
-    (e/add-handler emitter :monotonic-summing-window window)
+    (register-window emitter :monotonic-summing-window window)
     (is (nil? @last-val))
     (e/notify emitter :monotonic-summing-window 1)
     (is (nil? @last-val))
@@ -165,7 +165,7 @@
   (let [emitter (e/new-emitter)
         last-val (atom nil)
         window (timed-window-simple (c/make-wall-clock timespan) timespan sum #(reset! last-val %))]
-    (e/add-handler emitter :timed-summing-window window)
+    (register-window emitter :timed-summing-window window)
     (is (nil? @last-val))
     (e/notify emitter :timed-summing-window 1)
     (is (nil? @last-val))
@@ -177,5 +177,5 @@
 
     (e/notify emitter :timed-summing-window 1)
     (e/notify emitter :timed-summing-window 1)
-    (Thread/sleep 15)
+    (Thread/sleep 150)
     (is (= 2 @last-val))))
