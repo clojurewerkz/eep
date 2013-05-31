@@ -1,7 +1,7 @@
 (ns ^{:doc "Generic event emitter implementation heavily inspired by gen_event in Erlang/OTP"}
   clojurewerkz.eep.emitter
   (:require [clojure.set :as clj-set])
-  (:import java.util.concurrent.Executors))
+  (:import [java.util.concurrent Executors AbstractExecutorService]))
 
 (def global-handler :___global)
 
@@ -15,7 +15,6 @@
      (make-executor pool-size))
   ([size]
      (Executors/newFixedThreadPool size)))
-
 
 (defprotocol IEmitter
   (add-aggregator [_ t f initial-state] [_ t f initial-state executor] "Adds handler to the current emmiter.
@@ -52,7 +51,9 @@ Pretty much topic routing.")
   (! [_ type args] "Erlang-style alias for `notify`")
   (swap-handler [_ t old-f new-f] "Replaces `old-f` event handlers with `new-f` event handlers for type
 `t`")
-  (stop [_] "Cancels all pending tasks, stops event emission."))
+  (stop [_] "Cancels all pending tasks, stops event emission.")
+
+  (instrument [_] [_ t] "Returns instrumentation details for all the handlers"))
 
 (defprotocol IHandler
   (run [_ args])
@@ -62,6 +63,13 @@ Pretty much topic routing.")
   "As we may potentially accumulate rather large amount of futures, we have to garbage-collect them."
   [futures]
   (filter #(not (.isDone %)) futures))
+
+(defn- instrument-executor
+  [^AbstractExecutorService executor]
+  {:pool-size (.getPoolSize executor)
+   :active-threads (.getActiveCount executor)
+   :task-count (.getTaskCount executor)
+   :queued-tasks (.size (.getQueue executor))})
 
 (deftype Aggregator [executor f state_]
   IHandler
@@ -103,6 +111,7 @@ Pretty much topic routing.")
 
 (deftype Emitter [handlers futures executor]
   IEmitter
+
   (add-aggregator [_ event-type f initial-state]
     (add-handler-intern handlers event-type (Aggregator. executor f (atom initial-state))))
 
@@ -141,6 +150,14 @@ Pretty much topic routing.")
 
   (which-handlers [_ t]
     (t @handlers))
+
+  (instrument [_]
+    (into {}
+          (for [[t handlers] @handlers]
+            [t (mapv #(instrument-executor (.executor %)) handlers)])))
+
+  (instrument [_ t]
+    (map #(instrument-executor (.executor %)) (t @handlers)))
 
   (toString [_]
     (str "Handlers: " (mapv #(.toString %) @handlers))))
