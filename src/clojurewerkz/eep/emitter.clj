@@ -136,7 +136,8 @@ Pretty much topic routing.")
 
   (notify [_ t args]
     (doseq [h (get-handlers t @handlers)]
-      (swap! futures #(conj % (run h args))))
+      (let [future (run h args)]
+        (swap! futures #(conj % future))))
     (swap! futures collect-garbage))
 
   (flush-futures [_]
