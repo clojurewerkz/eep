@@ -5,41 +5,41 @@
             [clojurewerkz.eep.windows :as windows]
             [clojurewerkz.eep.clocks :as clocks]))
 
-(deftest t-add-aggregator
+(deftest t-defaggregator
   (let [emitter (new-emitter)]
-    (add-aggregator emitter :count + 100)
-    (add-aggregator emitter :count + 100)
-    (add-observer emitter :count println)
+    (defaggregator emitter :count + 100)
+    (defaggregator emitter :count + 100)
+    (defobserver emitter :count println)
     (is (= 3 (count (which-handlers emitter :count))))))
 
 (deftest t-delete-handler
   (let [emitter (new-emitter)]
-    (add-aggregator emitter :count + 100)
-    (add-aggregator emitter :count + 100)
-    (add-observer emitter :count println)
+    (defaggregator emitter :count + 100)
+    (defaggregator emitter :count + 100)
+    (defobserver emitter :count println)
 
     (delete-handler emitter :count println)
     (is (= 2 (count (which-handlers emitter :count)))))
 
   (let [emitter (new-emitter)]
-    (add-aggregator emitter :count + 100)
-    (add-aggregator emitter :count + 100)
-    (add-observer emitter :count println)
+    (defaggregator emitter :count + 100)
+    (defaggregator emitter :count + 100)
+    (defobserver emitter :count println)
     (is (= 3 (count (which-handlers emitter :count))))
     (delete-handler emitter :count +)
     (is (= 1 (count (which-handlers emitter :count)))))
 
   (let [emitter (new-emitter)]
-    (add-aggregator emitter :count + 100)
-    (add-aggregator emitter :count + 100)
-    (add-observer emitter :count (vary-meta println assoc :our-func true))
+    (defaggregator emitter :count + 100)
+    (defaggregator emitter :count + 100)
+    (defobserver emitter :count (vary-meta println assoc :our-func true))
     (is (= 3 (count (which-handlers emitter :count))))
     (delete-handler-by emitter :count #(:our-func (meta (.f %))))
     (is (= 2 (count (which-handlers emitter :count))))))
 
 (deftest a-test
   (let [emitter (new-emitter)]
-    (add-aggregator emitter :count + 100)
+    (defaggregator emitter :count + 100)
 
     (notify emitter :count 1)
     (notify emitter :count 1)
@@ -49,12 +49,12 @@
 
     (is (= 103 (state (first (which-handlers emitter :count)))))))
 
-(deftest t-add-observer
+(deftest t-defobserver
   (let [emitter (new-emitter)]
-    (add-aggregator emitter :count (fn [orig new]
-                                  (Thread/sleep 200)
-                                  (+ orig new))
-                 100)
+    (defaggregator emitter :count (fn [orig new]
+                                    (Thread/sleep 200)
+                                    (+ orig new))
+      100)
 
     (notify emitter :count 1)
     (is (= 100 (state (first (which-handlers emitter :count)))))
@@ -63,7 +63,7 @@
 
   (let [emitter (new-emitter)
         latch   (java.util.concurrent.CountDownLatch. 5)]
-    (add-observer emitter :countdown (fn [_]
+    (defobserver emitter :countdown (fn [_]
                                        (.countDown latch)))
     (dotimes [i 5]
       (notify emitter :countdown 1))
@@ -74,8 +74,8 @@
 
 (deftest filter-pipe-test
   (let [emitter (new-emitter)]
-    (add-filter emitter :entrypoint even? :summarizer)
-    (add-aggregator emitter :summarizer + 0)
+    (deffilter emitter :entrypoint even? :summarizer)
+    (defaggregator emitter :summarizer + 0)
     (notify emitter :entrypoint 1)
     (notify emitter :entrypoint 2)
     (notify emitter :entrypoint 3)

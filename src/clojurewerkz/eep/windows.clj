@@ -55,7 +55,7 @@
     (fn [value]
       (swap! buffer conj value))))
 
-(defn register-window
+(defn defwindow
   "Registers window with given handler name for given emitter, helper function"
   [emitter n window]
-  (e/add-observer emitter n window))
+  (e/defobserver emitter n window))

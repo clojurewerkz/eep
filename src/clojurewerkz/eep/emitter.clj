@@ -19,23 +19,7 @@
      (Executors/newFixedThreadPool size)))
 
 (defprotocol IEmitter
-  (add-aggregator [_ t f initial-state] [_ t f initial-state executor] "Adds handler to the current emmiter.
-Handler's tasks will be sumitted to Emitter's ThreadPool.
-
-Handler state is stored in atom, that is first initialized with `initial-state`.
-
-  3-arity version: `(event-type f initial-state)`")
-  (add-observer [_ t f] [_ t f executor] "Adds an observer to current emitter.
-
-`(f handler-state new-value)` is a function of 2 arguments, first one is current Handler state,
-second one is a new value. Function return becomes a new Handler state.
-
-  2-arity version: `(event-type f)`
-
-`(f handler-state)` is a function of 1 argument, that's used to add a Stateless Handler,
-potentially having side-effects. By enclosing emitter you can achieve capturing state of all
-or any handlers.")
-  (add-filter [_ event-type f rebroadcast])
+  (add-handler [_ event-type handler])
 
   (handler-registered? [_ t f])
 
@@ -96,8 +80,6 @@ Pretty much topic routing.")
   (state [_]
     nil))
 
-
-
 (deftype Filter [emitter executor filter-fn rebroadcast]
   IHandler
   (run [_ args]
@@ -107,6 +89,14 @@ Pretty much topic routing.")
 
   (state [_] nil))
 
+(deftype Multicast [emitter executor multicast-types]
+  IHandler
+  (run [_ args]
+    (.submit executor (fn []
+                        (doseq [t multicast-types]
+                          (notify emitter t args)))))
+
+  (state [_] nil))
 
 (defn- get-handlers
   [t handlers]
@@ -126,23 +116,28 @@ Pretty much topic routing.")
                               (fn [v]
                                 (apply disj v (filter matcher v))))))
 
+(defn deffilter
+  ([emitter t f rebroadcast]
+     (deffilter emitter t (.executor emitter) f rebroadcast))
+  ([emitter t executor f rebroadcast]
+     (add-handler emitter t (Filter. emitter executor f rebroadcast))))
+
+(defn defaggregator
+  ([emitter t f initial-state]
+     (defaggregator emitter t (.executor emitter) f initial-state))
+  ([emitter t executor f initial-state]
+     (add-handler emitter t (Aggregator. emitter executor f (atom initial-state)))))
+
+(defn defobserver
+  ([emitter t f]
+     (defobserver emitter t (.executor emitter) f))
+  ([emitter t executor f]
+     (add-handler emitter t (Observer. emitter executor f))))
+
 (deftype Emitter [handlers futures executor]
   IEmitter
-
-  (add-filter [this event-type f rebroadcast]
-    (add-handler-intern handlers event-type (Filter. this executor f rebroadcast)))
-
-  (add-aggregator [this event-type f initial-state]
-    (add-handler-intern handlers event-type (Aggregator. this executor f (atom initial-state))))
-
-  (add-aggregator [this event-type f initial-state executor]
-    (add-handler-intern handlers event-type (Aggregator. this executor f (atom initial-state))))
-
-  (add-observer [this event-type f]
-    (add-handler-intern handlers event-type (Observer. this executor f)))
-
-  (add-observer [this event-type f executor]
-    (add-handler-intern handlers event-type (Observer. this executor f)))
+  (add-handler [this event-type handler]
+    (add-handler-intern handlers event-type handler))
 
   (delete-handlers [_ event-type]
     (swap! dissoc handlers event-type))
