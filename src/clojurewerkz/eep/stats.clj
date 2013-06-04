@@ -21,5 +21,6 @@
      (- (count arr) 1))))
 
 (defn percentage
+  "Calculates percentage of value from total"
   [total value]
   (* (/ value total) 100.0))

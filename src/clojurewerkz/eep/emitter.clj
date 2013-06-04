@@ -3,6 +3,8 @@
   (:require [clojure.set :as clj-set])
   (:import [java.util.concurrent Executors AbstractExecutorService]))
 
+(alter-var-root #'*out* (constantly *out*))
+
 (def global-handler :___global)
 
 (def ^{:doc "Default thread pool size, calculated as # available processors + 1"}
@@ -33,6 +35,8 @@ second one is a new value. Function return becomes a new Handler state.
 `(f handler-state)` is a function of 1 argument, that's used to add a Stateless Handler,
 potentially having side-effects. By enclosing emitter you can achieve capturing state of all
 or any handlers.")
+  (add-filter [_ event-type f rebroadcast])
+
   (handler-registered? [_ t f])
 
   ;; TODO: add optional metadata to handlers, that may serve as an ability to remove handlers when
@@ -71,10 +75,11 @@ Pretty much topic routing.")
    :task-count (.getTaskCount executor)
    :queued-tasks (.size (.getQueue executor))})
 
-(deftype Aggregator [executor f state_]
+(deftype Aggregator [emitter executor f state_]
   IHandler
   (run [_ args]
-    (.submit executor #(swap! state_ f args)))
+    (.submit executor (fn []
+                        (swap! state_ f args))))
 
   (state [_]
     @state_)
@@ -83,13 +88,25 @@ Pretty much topic routing.")
   (toString [_]
     (str "Handler: " f ", state: " @state_) ))
 
-(deftype Observer [executor f]
+(deftype Observer [emitter executor f]
   IHandler
   (run [_ args]
     (.submit executor #(f args)))
 
   (state [_]
     nil))
+
+
+
+(deftype Filter [emitter executor filter-fn rebroadcast]
+  IHandler
+  (run [_ args]
+    (.submit executor (fn []
+                        (when (filter-fn args)
+                          (notify emitter rebroadcast args)))))
+
+  (state [_] nil))
+
 
 (defn- get-handlers
   [t handlers]
@@ -112,17 +129,20 @@ Pretty much topic routing.")
 (deftype Emitter [handlers futures executor]
   IEmitter
 
-  (add-aggregator [_ event-type f initial-state]
-    (add-handler-intern handlers event-type (Aggregator. executor f (atom initial-state))))
+  (add-filter [this event-type f rebroadcast]
+    (add-handler-intern handlers event-type (Filter. this executor f rebroadcast)))
 
-  (add-aggregator [_ event-type f initial-state executor]
-    (add-handler-intern handlers event-type (Aggregator. executor f (atom initial-state))))
+  (add-aggregator [this event-type f initial-state]
+    (add-handler-intern handlers event-type (Aggregator. this executor f (atom initial-state))))
 
-  (add-observer [_ event-type f]
-    (add-handler-intern handlers event-type (Observer. executor f)))
+  (add-aggregator [this event-type f initial-state executor]
+    (add-handler-intern handlers event-type (Aggregator. this executor f (atom initial-state))))
 
-  (add-observer [_ event-type f executor]
-    (add-handler-intern handlers event-type (Observer. executor f)))
+  (add-observer [this event-type f]
+    (add-handler-intern handlers event-type (Observer. this executor f)))
+
+  (add-observer [this event-type f executor]
+    (add-handler-intern handlers event-type (Observer. this executor f)))
 
   (delete-handlers [_ event-type]
     (swap! dissoc handlers event-type))

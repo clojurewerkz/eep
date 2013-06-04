@@ -47,7 +47,7 @@
 
     (Thread/sleep 150)
 
-    (is (= 103 (state (first (:count (which-handlers emitter))))))))
+    (is (= 103 (state (first (which-handlers emitter :count)))))))
 
 (deftest t-add-observer
   (let [emitter (new-emitter)]
@@ -57,9 +57,9 @@
                  100)
 
     (notify emitter :count 1)
-    (is (= 100 (state (first (:count (which-handlers emitter))))))
+    (is (= 100 (state (first (which-handlers emitter :count)))))
     (Thread/sleep 200)
-    (is (= 101 (state (first (:count (which-handlers emitter)))))))
+    (is (= 101 (state (first (which-handlers emitter :count))))))
 
   (let [emitter (new-emitter)
         latch   (java.util.concurrent.CountDownLatch. 5)]
@@ -71,3 +71,15 @@
     (is (.await latch 500 java.util.concurrent.TimeUnit/MILLISECONDS))))
 
 ;; Add with-emitter macro that'd thread emitter through add-handler
+
+(deftest filter-pipe-test
+  (let [emitter (new-emitter)]
+    (add-filter emitter :entrypoint even? :summarizer)
+    (add-aggregator emitter :summarizer + 0)
+    (notify emitter :entrypoint 1)
+    (notify emitter :entrypoint 2)
+    (notify emitter :entrypoint 3)
+    (notify emitter :entrypoint 4)
+    (notify emitter :entrypoint 5)
+    (Thread/sleep 200)
+    (is (= 6 (state (first (which-handlers emitter :summarizer)))))))
