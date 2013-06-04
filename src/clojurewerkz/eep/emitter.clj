@@ -128,6 +128,12 @@ Pretty much topic routing.")
   ([emitter t executor f initial-state]
      (add-handler emitter t (Aggregator. emitter executor f (atom initial-state)))))
 
+(defn defmulticast
+  ([emitter t m]
+     (defmulticast emitter t (.executor emitter) m))
+  ([emitter t executor m]
+     (add-handler emitter t (Multicast. emitter executor m))))
+
 (defn defobserver
   ([emitter t f]
      (defobserver emitter t (.executor emitter) f))

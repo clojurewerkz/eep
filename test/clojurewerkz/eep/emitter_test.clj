@@ -83,3 +83,17 @@
     (notify emitter :entrypoint 5)
     (Thread/sleep 200)
     (is (= 6 (state (first (which-handlers emitter :summarizer)))))))
+
+(deftest multicast-test
+  (let [emitter (new-emitter)]
+    (defmulticast emitter :entrypoint [:summarizer1 :summarizer2 :summarizer3])
+    (defaggregator emitter :summarizer1 + 0)
+    (defaggregator emitter :summarizer2 + 0)
+    (defaggregator emitter :summarizer3 + 0)
+    (notify emitter :entrypoint 1)
+    (notify emitter :entrypoint 2)
+    (notify emitter :entrypoint 3)
+    (Thread/sleep 200)
+    (is (= 6 (state (first (which-handlers emitter :summarizer1)))))
+    (is (= 6 (state (first (which-handlers emitter :summarizer2)))))
+    (is (= 6 (state (first (which-handlers emitter :summarizer3)))))))
