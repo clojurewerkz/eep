@@ -98,6 +98,13 @@ Pretty much topic routing.")
 
   (state [_] nil))
 
+(deftype Transformer [emitter executor transform-fn rebroadcast]
+  IHandler
+  (run [_ args]
+    (.submit executor #(notify emitter rebroadcast (transform-fn args))))
+
+  (state [_] nil))
+
 (defn- get-handlers
   [t handlers]
   (clj-set/union (get-in handlers [t]) (global-handler handlers)))
@@ -122,6 +129,12 @@ Pretty much topic routing.")
   ([emitter t executor f rebroadcast]
      (add-handler emitter t (Filter. emitter executor f rebroadcast))))
 
+(defn deftransformer
+  ([emitter t transform-fn rebroadcast]
+     (deftransformer emitter t (.executor emitter) transform-fn rebroadcast))
+  ([emitter t executor transform-fn rebroadcast]
+     (add-handler emitter t (Transformer. emitter executor transform-fn rebroadcast))))
+
 (defn defaggregator
   ([emitter t f initial-state]
      (defaggregator emitter t (.executor emitter) f initial-state))
@@ -139,6 +152,8 @@ Pretty much topic routing.")
      (defobserver emitter t (.executor emitter) f))
   ([emitter t executor f]
      (add-handler emitter t (Observer. emitter executor f))))
+
+
 
 (deftype Emitter [handlers futures executor]
   IEmitter

@@ -97,3 +97,15 @@
     (is (= 6 (state (first (which-handlers emitter :summarizer1)))))
     (is (= 6 (state (first (which-handlers emitter :summarizer2)))))
     (is (= 6 (state (first (which-handlers emitter :summarizer3)))))))
+
+(deftest transform-test
+  (let [emitter (new-emitter)]
+    (deftransformer emitter :entrypoint (partial * 2) :summarizer)
+    (defaggregator emitter :summarizer + 0)
+    (notify emitter :entrypoint 1)
+    (notify emitter :entrypoint 2)
+    (notify emitter :entrypoint 3)
+    (notify emitter :entrypoint 4)
+    (notify emitter :entrypoint 5)
+    (Thread/sleep 200)
+    (is (= 30 (state (first (which-handlers emitter :summarizer)))))))
