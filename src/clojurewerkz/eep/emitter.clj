@@ -124,36 +124,40 @@ Pretty much topic routing.")
                                 (apply disj v (filter matcher v))))))
 
 (defn deffilter
-  ([emitter t f rebroadcast]
-     (deffilter emitter t (.executor emitter) f rebroadcast))
-  ([emitter t executor f rebroadcast]
-     (add-handler emitter t (Filter. emitter executor f rebroadcast))))
+  "Defines a filter operation, that gets typed tuples, and rebroadcasts ones for which `filter-fn` returns true"
+  ([emitter t filter-fn rebroadcast]
+     (deffilter emitter t (.executor emitter) filter-fn rebroadcast))
+  ([emitter t executor filter-fn rebroadcast]
+     (add-handler emitter t (Filter. emitter executor filter-fn rebroadcast))))
 
 (defn deftransformer
+  "Defines a transformer, that gets typed tuples, transforms them with `transform-fn` and rebroadcasts them."
   ([emitter t transform-fn rebroadcast]
      (deftransformer emitter t (.executor emitter) transform-fn rebroadcast))
   ([emitter t executor transform-fn rebroadcast]
      (add-handler emitter t (Transformer. emitter executor transform-fn rebroadcast))))
 
 (defn defaggregator
-  ([emitter t f initial-state]
-     (defaggregator emitter t (.executor emitter) f initial-state))
-  ([emitter t executor f initial-state]
-     (add-handler emitter t (Aggregator. emitter executor f (atom initial-state)))))
+  "Defines an aggregator, that is initialized with `initial-state`, then gets typed tuples and aggregates state
+   by applying `aggregate-fn` to current state and tuple."
+  ([emitter t aggregate-fn initial-state]
+     (defaggregator emitter t (.executor emitter) aggregate-fn initial-state))
+  ([emitter t executor aggregate-fn initial-state]
+     (add-handler emitter t (Aggregator. emitter executor aggregate-fn (atom initial-state)))))
 
 (defn defmulticast
+  "Defines a multicast, that receives a typed tuple, and rebroadcasts them to several types of the given emitter."
   ([emitter t m]
      (defmulticast emitter t (.executor emitter) m))
   ([emitter t executor m]
      (add-handler emitter t (Multicast. emitter executor m))))
 
 (defn defobserver
+  "Defines an observer, that runs (potentially with side-effects) f for tuples of given type."
   ([emitter t f]
      (defobserver emitter t (.executor emitter) f))
   ([emitter t executor f]
      (add-handler emitter t (Observer. emitter executor f))))
-
-
 
 (deftype Emitter [handlers futures executor]
   IEmitter
