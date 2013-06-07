@@ -86,13 +86,13 @@
     (e/notify emitter :sliding-summing-window 3)
     (e/notify emitter :sliding-summing-window 4)
     (e/notify emitter :sliding-summing-window 5)
-    (e/flush-futures emitter)
+
     (is (= 15 @last-val))
     (e/notify emitter :sliding-summing-window 6)
-    (e/flush-futures emitter)
+
     (is (= 20 @last-val))
     (e/notify emitter :sliding-summing-window 7)
-    (e/flush-futures emitter)
+
     (is (= 25 @last-val))))
 
 (deftest emitter-tumbling-window-test
@@ -106,17 +106,17 @@
     (e/notify emitter :tumbling-summing-window 3)
     (e/notify emitter :tumbling-summing-window 4)
     (e/notify emitter :tumbling-summing-window 5)
-    (e/flush-futures emitter)
+
     (is (= 15 @last-val))
 
     (e/notify emitter :tumbling-summing-window 6)
-    (e/flush-futures emitter)
+
     (is (= 15 @last-val))
     (e/notify emitter :tumbling-summing-window 7)
     (e/notify emitter :tumbling-summing-window 8)
     (e/notify emitter :tumbling-summing-window 9)
     (e/notify emitter :tumbling-summing-window 10)
-    (e/flush-futures emitter)
+
     (is (= 40 @last-val))))
 
 (deftest emitter-monotonic-window-test
@@ -131,11 +131,11 @@
     (e/notify emitter :monotonic-summing-window 1)
     (e/notify emitter :monotonic-summing-window 1)
     (e/notify emitter :monotonic-summing-window 1)
-    (e/flush-futures emitter)
+
     ;; Counting clock should be elapsed only after 5 ticks
     (is (= nil @last-val))
     (e/notify emitter :monotonic-summing-window 1)
-    (e/flush-futures emitter)
+
     (is (= 5 @last-val)))
 
   (let [emitter (e/new-emitter)
@@ -150,14 +150,14 @@
     (e/notify emitter :monotonic-summing-window 1)
     (Thread/sleep timespan)
     (e/notify emitter :monotonic-summing-window 1)
-    (e/flush-futures emitter)
+
     (is (= 4 @last-val))
     (e/notify emitter :monotonic-summing-window 1)
-    (e/flush-futures emitter)
+
     (is (= 4 @last-val))
     (Thread/sleep timespan)
     (e/notify emitter :monotonic-summing-window 1)
-    (e/flush-futures emitter)
+
     (is (= 2 @last-val))))
 
 

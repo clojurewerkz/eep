@@ -1,7 +1,7 @@
 (ns ^{:doc "Generic event emitter implementation heavily inspired by gen_event in Erlang/OTP"}
   clojurewerkz.eep.emitter
-  (:require [clojure.set :as clj-set])
-  (:import [java.util.concurrent Executors AbstractExecutorService]))
+  (:require [clojurewerkz.meltdown.reactor   :as mr]
+            [clojurewerkz.meltdown.selectors :as ms :refer [$]]))
 
 (alter-var-root #'*out* (constantly *out*))
 
@@ -11,12 +11,6 @@
   pool-size (-> (Runtime/getRuntime)
                 .availableProcessors
                 inc))
-
-(defn make-executor
-  ([]
-     (make-executor pool-size))
-  ([size]
-     (Executors/newFixedThreadPool size)))
 
 (defprotocol IEmitter
   (add-handler [_ event-type handler])
@@ -28,8 +22,6 @@
   (delete-handler [_ t] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
   (which-handlers [_] [_ t] "Returns all currently registered Handlers for Emitter")
-  (flush-futures [_] "Under some circumstances, you may want to make sure that all the pending tasks
-are executed by some point. By calling `flush-futures`, you force-complete all the pending tasks.")
   (notify [_ type args] "Asynchronous (default) event dispatch function. All the Handlers (both
 stateful and stateless). Pretty much direct routing.")
   (notify-some [_ type-checker args] "Asynchronous notification, with function that matches an event type.
@@ -39,7 +31,7 @@ Pretty much topic routing.")
 `t`")
   (stop [_] "Cancels all pending tasks, stops event emission.")
 
-  (instrument [_] [_ t] "Returns instrumentation details for all the handlers"))
+  (instrument [_] "Returns instrumentation details"))
 
 (defprotocol IHandler
   (run [_ args])
@@ -50,18 +42,10 @@ Pretty much topic routing.")
   [futures]
   (filter #(not (.isDone %)) futures))
 
-(defn- instrument-executor
-  [^AbstractExecutorService executor]
-  {:pool-size (.getPoolSize executor)
-   :active-threads (.getActiveCount executor)
-   :task-count (.getTaskCount executor)
-   :queued-tasks (.size (.getQueue executor))})
-
-(deftype Aggregator [emitter executor f state_]
+(deftype Aggregator [emitter f state_]
   IHandler
   (run [_ args]
-    (.submit executor (fn []
-                        (swap! state_ f args))))
+    (swap! state_ f (get-in args [:data])))
 
   (state [_]
     @state_)
@@ -70,36 +54,35 @@ Pretty much topic routing.")
   (toString [_]
     (str "Handler: " f ", state: " @state_) ))
 
-(deftype Observer [emitter executor f]
+(deftype Observer [emitter f]
   IHandler
   (run [_ args]
-    (.submit executor #(f args)))
+    (f (get-in args [:data])))
 
   (state [_]
     nil))
 
-(deftype Filter [emitter executor filter-fn rebroadcast]
+(deftype Filter [emitter filter-fn rebroadcast]
   IHandler
   (run [_ args]
-    (.submit executor (fn []
-                        (when (filter-fn args)
-                          (notify emitter rebroadcast args)))))
+    (let [args (get-in args [:data])]
+      (when (filter-fn args)
+        (notify emitter rebroadcast args))))
 
   (state [_] nil))
 
-(deftype Multicast [emitter executor multicast-types]
+(deftype Multicast [emitter multicast-types]
   IHandler
   (run [_ args]
-    (.submit executor (fn []
-                        (doseq [t multicast-types]
-                          (notify emitter t args)))))
+    (doseq [t multicast-types]
+      (notify emitter t (get-in args [:data]))))
 
   (state [_] nil))
 
-(deftype Transformer [emitter executor transform-fn rebroadcast]
+(deftype Transformer [emitter transform-fn rebroadcast]
   IHandler
   (run [_ args]
-    (.submit executor #(notify emitter rebroadcast (transform-fn args))))
+    (notify emitter rebroadcast (transform-fn (get-in args [:data]))))
 
   (state [_] nil))
 
@@ -113,56 +96,42 @@ Pretty much topic routing.")
 
 (defn deffilter
   "Defines a filter operation, that gets typed tuples, and rebroadcasts ones for which `filter-fn` returns true"
-  ([emitter t filter-fn rebroadcast]
-     (deffilter emitter t (.executor emitter) filter-fn rebroadcast))
-  ([emitter t executor filter-fn rebroadcast]
-     (add-handler emitter t (Filter. emitter executor filter-fn rebroadcast))))
+  [emitter t filter-fn rebroadcast]
+  (add-handler emitter t (Filter. emitter filter-fn rebroadcast)))
 
 (defn deftransformer
   "Defines a transformer, that gets typed tuples, transforms them with `transform-fn` and rebroadcasts them."
-  ([emitter t transform-fn rebroadcast]
-     (deftransformer emitter t (.executor emitter) transform-fn rebroadcast))
-  ([emitter t executor transform-fn rebroadcast]
-     (add-handler emitter t (Transformer. emitter executor transform-fn rebroadcast))))
+  [emitter t transform-fn rebroadcast]
+  (add-handler emitter t (Transformer. emitter transform-fn rebroadcast)))
 
 (defn defaggregator
   "Defines an aggregator, that is initialized with `initial-state`, then gets typed tuples and aggregates state
    by applying `aggregate-fn` to current state and tuple."
-  ([emitter t aggregate-fn initial-state]
-     (defaggregator emitter t (.executor emitter) aggregate-fn initial-state))
-  ([emitter t executor aggregate-fn initial-state]
-     (add-handler emitter t (Aggregator. emitter executor aggregate-fn (atom initial-state)))))
+  [emitter t aggregate-fn initial-state]
+  (add-handler emitter t (Aggregator. emitter aggregate-fn (atom initial-state))))
 
 (defn defmulticast
   "Defines a multicast, that receives a typed tuple, and rebroadcasts them to several types of the given emitter."
-  ([emitter t m]
-     (defmulticast emitter t (.executor emitter) m))
-  ([emitter t executor m]
-     (add-handler emitter t (Multicast. emitter executor m))))
+  [emitter t m]
+  (add-handler emitter t (Multicast. emitter m)))
 
 (defn defobserver
   "Defines an observer, that runs (potentially with side-effects) f for tuples of given type."
-  ([emitter t f]
-     (defobserver emitter t (.executor emitter) f))
-  ([emitter t executor f]
-     (add-handler emitter t (Observer. emitter executor f))))
+  [emitter t f]
+  (add-handler emitter t (Observer. emitter f)))
 
-(deftype Emitter [handlers futures executor]
+(deftype Emitter [handlers reactor]
   IEmitter
   (add-handler [this event-type handler]
-    (add-handler-intern handlers event-type handler))
+    (add-handler-intern handlers event-type handler)
+    (mr/on reactor ($ event-type) (fn [e]
+                                    (run handler e))))
 
   (delete-handler [_ event-type]
     (swap! dissoc handlers event-type))
 
   (notify [_ t args]
-    (let [h (t @handlers)
-          future (run h args)]
-      (swap! futures #(conj % future)))
-    (swap! futures collect-garbage))
-
-  (flush-futures [_]
-    (doseq [future @futures] (if-not (.isDone future) (.get future))))
+    (mr/notify t args))
 
   (! [this t args]
     (notify this t args))
@@ -174,12 +143,9 @@ Pretty much topic routing.")
     (t @handlers))
 
   (instrument [_]
-    (into {}
-          (for [[t handlers] @handlers]
-            [t (mapv #(instrument-executor (.executor %)) handlers)])))
 
-  (instrument [_ t]
-    (map #(instrument-executor (.executor %)) (t @handlers)))
+    )
+
 
   (toString [_]
     (str "Handlers: " (mapv #(.toString %) @handlers))))
@@ -187,4 +153,4 @@ Pretty much topic routing.")
 (defn new-emitter
   "Creates a fresh Event Emitter with the default executor."
   []
-  (Emitter. (atom {}) (atom []) (make-executor)))
+  (Emitter. (atom {}) (mr/create)))

@@ -8,13 +8,9 @@
 (deftest a-test
   (let [emitter (new-emitter)]
     (defaggregator emitter :count + 100)
-
     (notify emitter :count 1)
     (notify emitter :count 1)
     (notify emitter :count 1)
-
-    (Thread/sleep 150)
-
     (is (= 103 (state (which-handlers emitter :count))))))
 
 (deftest t-defobserver
@@ -24,9 +20,8 @@
                                     (+ orig new))
       100)
 
-    (notify emitter :count 1)
     (is (= 100 (state (which-handlers emitter :count))))
-    (Thread/sleep 200)
+    (notify emitter :count 1)
     (is (= 101 (state (which-handlers emitter :count)))))
 
   (let [emitter (new-emitter)
@@ -49,7 +44,6 @@
     (notify emitter :entrypoint 3)
     (notify emitter :entrypoint 4)
     (notify emitter :entrypoint 5)
-    (Thread/sleep 200)
     (is (= 6 (state (which-handlers emitter :summarizer))))))
 
 (deftest multicast-test
@@ -61,7 +55,6 @@
     (notify emitter :entrypoint 1)
     (notify emitter :entrypoint 2)
     (notify emitter :entrypoint 3)
-    (Thread/sleep 200)
     (is (= 6 (state (which-handlers emitter :summarizer1))))
     (is (= 6 (state (which-handlers emitter :summarizer2))))
     (is (= 6 (state (which-handlers emitter :summarizer3))))))
@@ -75,5 +68,4 @@
     (notify emitter :entrypoint 3)
     (notify emitter :entrypoint 4)
     (notify emitter :entrypoint 5)
-    (Thread/sleep 200)
     (is (= 30 (state (which-handlers emitter :summarizer))))))
