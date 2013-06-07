@@ -5,38 +5,6 @@
             [clojurewerkz.eep.windows :as windows]
             [clojurewerkz.eep.clocks :as clocks]))
 
-(deftest t-defaggregator
-  (let [emitter (new-emitter)]
-    (defaggregator emitter :count + 100)
-    (defaggregator emitter :count + 100)
-    (defobserver emitter :count println)
-    (is (= 3 (count (which-handlers emitter :count))))))
-
-(deftest t-delete-handler
-  (let [emitter (new-emitter)]
-    (defaggregator emitter :count + 100)
-    (defaggregator emitter :count + 100)
-    (defobserver emitter :count println)
-
-    (delete-handler emitter :count println)
-    (is (= 2 (count (which-handlers emitter :count)))))
-
-  (let [emitter (new-emitter)]
-    (defaggregator emitter :count + 100)
-    (defaggregator emitter :count + 100)
-    (defobserver emitter :count println)
-    (is (= 3 (count (which-handlers emitter :count))))
-    (delete-handler emitter :count +)
-    (is (= 1 (count (which-handlers emitter :count)))))
-
-  (let [emitter (new-emitter)]
-    (defaggregator emitter :count + 100)
-    (defaggregator emitter :count + 100)
-    (defobserver emitter :count (vary-meta println assoc :our-func true))
-    (is (= 3 (count (which-handlers emitter :count))))
-    (delete-handler-by emitter :count #(:our-func (meta (.f %))))
-    (is (= 2 (count (which-handlers emitter :count))))))
-
 (deftest a-test
   (let [emitter (new-emitter)]
     (defaggregator emitter :count + 100)
@@ -47,7 +15,7 @@
 
     (Thread/sleep 150)
 
-    (is (= 103 (state (first (which-handlers emitter :count)))))))
+    (is (= 103 (state (which-handlers emitter :count))))))
 
 (deftest t-defobserver
   (let [emitter (new-emitter)]
@@ -57,9 +25,9 @@
       100)
 
     (notify emitter :count 1)
-    (is (= 100 (state (first (which-handlers emitter :count)))))
+    (is (= 100 (state (which-handlers emitter :count))))
     (Thread/sleep 200)
-    (is (= 101 (state (first (which-handlers emitter :count))))))
+    (is (= 101 (state (which-handlers emitter :count)))))
 
   (let [emitter (new-emitter)
         latch   (java.util.concurrent.CountDownLatch. 5)]
@@ -82,7 +50,7 @@
     (notify emitter :entrypoint 4)
     (notify emitter :entrypoint 5)
     (Thread/sleep 200)
-    (is (= 6 (state (first (which-handlers emitter :summarizer)))))))
+    (is (= 6 (state (which-handlers emitter :summarizer))))))
 
 (deftest multicast-test
   (let [emitter (new-emitter)]
@@ -94,9 +62,9 @@
     (notify emitter :entrypoint 2)
     (notify emitter :entrypoint 3)
     (Thread/sleep 200)
-    (is (= 6 (state (first (which-handlers emitter :summarizer1)))))
-    (is (= 6 (state (first (which-handlers emitter :summarizer2)))))
-    (is (= 6 (state (first (which-handlers emitter :summarizer3)))))))
+    (is (= 6 (state (which-handlers emitter :summarizer1))))
+    (is (= 6 (state (which-handlers emitter :summarizer2))))
+    (is (= 6 (state (which-handlers emitter :summarizer3))))))
 
 (deftest transform-test
   (let [emitter (new-emitter)]
@@ -108,4 +76,4 @@
     (notify emitter :entrypoint 4)
     (notify emitter :entrypoint 5)
     (Thread/sleep 200)
-    (is (= 30 (state (first (which-handlers emitter :summarizer)))))))
+    (is (= 30 (state (which-handlers emitter :summarizer))))))

@@ -25,10 +25,8 @@
 
   ;; TODO: add optional metadata to handlers, that may serve as an ability to remove handlers when
   ;; handler function auto-generated
-  (delete-handler [_ t f] "Removes the handler `f` from the current emitter, that's used for event
+  (delete-handler [_ t] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
-  (delete-handlers [_ t] "Removes all handlers for given type.")
-  (delete-handler-by [_ t f] "Removes the handler using the matcher function `f`.")
   (which-handlers [_] [_ t] "Returns all currently registered Handlers for Emitter")
   (flush-futures [_] "Under some circumstances, you may want to make sure that all the pending tasks
 are executed by some point. By calling `flush-futures`, you force-complete all the pending tasks.")
@@ -105,23 +103,13 @@ Pretty much topic routing.")
 
   (state [_] nil))
 
-(defn- get-handlers
-  [t handlers]
-  (clj-set/union (get-in handlers [t]) (global-handler handlers)))
-
 (defn- add-handler-intern
   [handlers event-type handler]
-  (swap! handlers #(update-in % [event-type]
-                              (fn [v]
-                                (if (nil? v)
-                                  #{handler}
-                                  (conj v handler))))))
+  (swap! handlers assoc event-type handler))
 
 (defn- delete-handler-intern
-  [handlers event-type matcher]
-  (swap! handlers #(update-in % [event-type]
-                              (fn [v]
-                                (apply disj v (filter matcher v))))))
+  [handlers event-type]
+  (swap! handlers dissoc event-type))
 
 (defn deffilter
   "Defines a filter operation, that gets typed tuples, and rebroadcasts ones for which `filter-fn` returns true"
@@ -164,20 +152,13 @@ Pretty much topic routing.")
   (add-handler [this event-type handler]
     (add-handler-intern handlers event-type handler))
 
-  (delete-handlers [_ event-type]
+  (delete-handler [_ event-type]
     (swap! dissoc handlers event-type))
 
-  (delete-handler [_ event-type f]
-    (delete-handler-intern handlers event-type #(= f (.f %))))
-
-  (delete-handler-by [_ event-type f]
-    (delete-handler-intern handlers event-type f))
-
-
   (notify [_ t args]
-    (doseq [h (get-handlers t @handlers)]
-      (let [future (run h args)]
-        (swap! futures #(conj % future))))
+    (let [h (t @handlers)
+          future (run h args)]
+      (swap! futures #(conj % future)))
     (swap! futures collect-garbage))
 
   (flush-futures [_]
