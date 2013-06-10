@@ -11,7 +11,8 @@
     (notify emitter :count 1)
     (notify emitter :count 1)
     (notify emitter :count 1)
-    (is (= 103 (state (which-handlers emitter :count))))))
+    (Thread/sleep 100)
+    (is (= 103 (state (get-handler emitter :count))))))
 
 (deftest t-defobserver
   (let [emitter (new-emitter)]
@@ -20,14 +21,15 @@
                                     (+ orig new))
       100)
 
-    (is (= 100 (state (which-handlers emitter :count))))
+    (is (= 100 (state (get-handler emitter :count))))
     (notify emitter :count 1)
-    (is (= 101 (state (which-handlers emitter :count)))))
+    (Thread/sleep 200)
+    (is (= 101 (state (get-handler emitter :count)))))
 
   (let [emitter (new-emitter)
         latch   (java.util.concurrent.CountDownLatch. 5)]
     (defobserver emitter :countdown (fn [_]
-                                       (.countDown latch)))
+                                      (.countDown latch)))
     (dotimes [i 5]
       (notify emitter :countdown 1))
 
@@ -44,20 +46,39 @@
     (notify emitter :entrypoint 3)
     (notify emitter :entrypoint 4)
     (notify emitter :entrypoint 5)
-    (is (= 6 (state (which-handlers emitter :summarizer))))))
+    (Thread/sleep 200)
+    (is (= 6 (state (get-handler emitter :summarizer))))))
 
 (deftest multicast-test
-  (let [emitter (new-emitter)]
-    (defmulticast emitter :entrypoint [:summarizer1 :summarizer2 :summarizer3])
-    (defaggregator emitter :summarizer1 + 0)
-    (defaggregator emitter :summarizer2 + 0)
-    (defaggregator emitter :summarizer3 + 0)
-    (notify emitter :entrypoint 1)
-    (notify emitter :entrypoint 2)
-    (notify emitter :entrypoint 3)
-    (is (= 6 (state (which-handlers emitter :summarizer1))))
-    (is (= 6 (state (which-handlers emitter :summarizer2))))
-    (is (= 6 (state (which-handlers emitter :summarizer3))))))
+  (testing "Basic multicast abilities"
+    (let [emitter (new-emitter)]
+      (defmulticast emitter :entrypoint [:summarizer1 :summarizer2 :summarizer3])
+      (defaggregator emitter :summarizer1 + 0)
+      (defaggregator emitter :summarizer2 + 0)
+      (defaggregator emitter :summarizer3 + 0)
+      (notify emitter :entrypoint 1)
+      (notify emitter :entrypoint 2)
+      (notify emitter :entrypoint 3)
+      (Thread/sleep 100)
+      (is (= 6 (state (get-handler emitter :summarizer1))))
+      (is (= 6 (state (get-handler emitter :summarizer2))))
+      (is (= 6 (state (get-handler emitter :summarizer3))))))
+
+  (testing "Re-adding multicast"
+    (let [emitter (new-emitter)]
+      (defmulticast emitter :entrypoint [:summarizer1])
+      (defmulticast emitter :entrypoint [:summarizer2])
+      (defmulticast emitter :entrypoint [:summarizer3])
+      (defaggregator emitter :summarizer1 + 0)
+      (defaggregator emitter :summarizer2 + 0)
+      (defaggregator emitter :summarizer3 + 0)
+      (notify emitter :entrypoint 1)
+      (notify emitter :entrypoint 2)
+      (notify emitter :entrypoint 3)
+      (Thread/sleep 100)
+      (is (= 6 (state (get-handler emitter :summarizer1))))
+      (is (= 6 (state (get-handler emitter :summarizer2))))
+      (is (= 6 (state (get-handler emitter :summarizer3)))))))
 
 (deftest transform-test
   (let [emitter (new-emitter)]
@@ -68,4 +89,20 @@
     (notify emitter :entrypoint 3)
     (notify emitter :entrypoint 4)
     (notify emitter :entrypoint 5)
-    (is (= 30 (state (which-handlers emitter :summarizer))))))
+    (Thread/sleep 200)
+    (is (= 30 (state (get-handler emitter :summarizer))))))
+
+(deftest test-splitter
+  (let [emitter (new-emitter)]
+    (defsplitter emitter :entrypoint (fn [i] (if (even? i) :even :odd)))
+    (defaggregator emitter :even + 0)
+    (defaggregator emitter :odd + 0)
+    (notify emitter :entrypoint 1)
+    (notify emitter :entrypoint 2)
+    (notify emitter :entrypoint 3)
+    (notify emitter :entrypoint 4)
+    (notify emitter :entrypoint 5)
+
+    (Thread/sleep 100)
+    (is (= 6 (state (get-handler emitter :even))))
+    (is (= 9 (state (get-handler emitter :odd))))))

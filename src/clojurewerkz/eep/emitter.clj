@@ -14,24 +14,18 @@
 
 (defprotocol IEmitter
   (add-handler [_ event-type handler])
-
   (handler-registered? [_ t f])
-
-  ;; TODO: add optional metadata to handlers, that may serve as an ability to remove handlers when
-  ;; handler function auto-generated
   (delete-handler [_ t] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
-  (which-handlers [_] [_ t] "Returns all currently registered Handlers for Emitter")
+  (get-handler [_] [_ t] "Returns all currently registered Handlers for Emitter")
   (notify [_ type args] "Asynchronous (default) event dispatch function. All the Handlers (both
 stateful and stateless). Pretty much direct routing.")
   (notify-some [_ type-checker args] "Asynchronous notification, with function that matches an event type.
 Pretty much topic routing.")
   (! [_ type args] "Erlang-style alias for `notify`")
-  (swap-handler [_ t old-f new-f] "Replaces `old-f` event handlers with `new-f` event handlers for type
-`t`")
+  (swap-handler [_ t new-f] "Replaces typed event handler with `new-f` event handler.")
   (stop [_] "Cancels all pending tasks, stops event emission.")
-
-  (instrument [_] "Returns instrumentation details"))
+  (alive? [_] "Returns wether the current emitter is alive or no"))
 
 (defprotocol IHandler
   (run [_ args])
@@ -42,10 +36,14 @@ Pretty much topic routing.")
   [futures]
   (filter #(not (.isDone %)) futures))
 
+(defn extract-data
+  [payload]
+  (get-in payload [:data]))
+
 (deftype Aggregator [emitter f state_]
   IHandler
-  (run [_ args]
-    (swap! state_ f (get-in args [:data])))
+  (run [_ payload]
+    (swap! state_ f (extract-data payload)))
 
   (state [_]
     @state_)
@@ -56,33 +54,41 @@ Pretty much topic routing.")
 
 (deftype Observer [emitter f]
   IHandler
-  (run [_ args]
-    (f (get-in args [:data])))
+  (run [_ payload]
+    (f (extract-data payload)))
 
   (state [_]
     nil))
 
 (deftype Filter [emitter filter-fn rebroadcast]
   IHandler
-  (run [_ args]
-    (let [args (get-in args [:data])]
-      (when (filter-fn args)
-        (notify emitter rebroadcast args))))
+  (run [_ payload]
+    (let [data (extract-data payload)]
+      (when (filter-fn data)
+        (notify emitter rebroadcast data))))
 
   (state [_] nil))
 
 (deftype Multicast [emitter multicast-types]
   IHandler
-  (run [_ args]
+  (run [_ payload]
     (doseq [t multicast-types]
-      (notify emitter t (get-in args [:data]))))
+      (notify emitter t (extract-data payload))))
+
+  (state [_] nil))
+
+(deftype Splitter [emitter split-fn]
+  IHandler
+  (run [_ payload]
+    (let [data (extract-data payload)]
+      (notify emitter (split-fn data) data)))
 
   (state [_] nil))
 
 (deftype Transformer [emitter transform-fn rebroadcast]
   IHandler
-  (run [_ args]
-    (notify emitter rebroadcast (transform-fn (get-in args [:data]))))
+  (run [_ payload]
+    (notify emitter rebroadcast (transform-fn (extract-data payload))))
 
   (state [_] nil))
 
@@ -113,7 +119,16 @@ Pretty much topic routing.")
 (defn defmulticast
   "Defines a multicast, that receives a typed tuple, and rebroadcasts them to several types of the given emitter."
   [emitter t m]
-  (add-handler emitter t (Multicast. emitter m)))
+  (let [h (get-handler emitter t)]
+    (add-handler emitter t
+                 (Multicast. emitter
+                             (if (isa? Multicast h)
+                               (set (concat (.multicast-types h) m))
+                               (set m))))))
+
+(defn defsplitter
+  [emitter t split-fn]
+  (add-handler emitter t (Splitter. emitter split-fn)))
 
 (defn defobserver
   "Defines an observer, that runs (potentially with side-effects) f for tuples of given type."
@@ -123,12 +138,18 @@ Pretty much topic routing.")
 (deftype Emitter [handlers reactor]
   IEmitter
   (add-handler [this event-type handler]
-    (add-handler-intern handlers event-type handler)
-    (mr/on reactor ($ event-type) (fn [e]
-                                    (run handler e))))
+    (when (nil? (get handler event-type))
+      (add-handler-intern handlers event-type handler)
+      (mr/on reactor ($ event-type) (fn [e]
+                                      (run handler e)))))
 
   (delete-handler [_ event-type]
+    (.unregister (.getConsumerRegistry reactor) event-type)
     (swap! dissoc handlers event-type))
+
+  (swap-handler [this event-type f]
+    (delete-handler this event-type)
+    (add-handler this event-type f))
 
   (notify [_ t args]
     (mr/notify t args))
@@ -136,16 +157,24 @@ Pretty much topic routing.")
   (! [this t args]
     (notify this t args))
 
-  (which-handlers [_]
+  (get-handler [_]
     @handlers)
 
-  (which-handlers [_ t]
+  (get-handler [_ t]
     (t @handlers))
 
-  (instrument [_]
+  (stop [_]
+    (println
+     (-> reactor
+        (.getDispatcher)))
+    (-> reactor
+        (.getDispatcher)
+        (.shutdown)))
 
-    )
-
+  (alive? [_]
+    (-> reactor
+        (.getDispatcher)
+        (.alive)))
 
   (toString [_]
     (str "Handlers: " (mapv #(.toString %) @handlers))))
@@ -153,4 +182,4 @@ Pretty much topic routing.")
 (defn new-emitter
   "Creates a fresh Event Emitter with the default executor."
   []
-  (Emitter. (atom {}) (mr/create)))
+  (Emitter. (atom {}) (mr/create :dispatcher-type :ring-buffer)))
