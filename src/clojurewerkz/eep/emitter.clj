@@ -1,7 +1,8 @@
 (ns ^{:doc "Generic event emitter implementation heavily inspired by gen_event in Erlang/OTP"}
   clojurewerkz.eep.emitter
   (:require [clojurewerkz.meltdown.reactor   :as mr]
-            [clojurewerkz.meltdown.selectors :as ms :refer [$]]))
+            [clojurewerkz.meltdown.selectors :as ms :refer [$]])
+  (:import [java.util.concurrent ConcurrentHashMap]))
 
 (alter-var-root #'*out* (constantly *out*))
 
@@ -11,6 +12,10 @@
   pool-size (-> (Runtime/getRuntime)
                 .availableProcessors
                 inc))
+
+(defprotocol IHandler
+  (run [_ args])
+  (state [_]))
 
 (defprotocol IEmitter
   (add-handler [_ event-type handler])
@@ -25,11 +30,8 @@ Pretty much topic routing.")
   (! [_ type args] "Erlang-style alias for `notify`")
   (swap-handler [_ t new-f] "Replaces typed event handler with `new-f` event handler.")
   (stop [_] "Cancels all pending tasks, stops event emission.")
-  (alive? [_] "Returns wether the current emitter is alive or no"))
-
-(defprotocol IHandler
-  (run [_ args])
-  (state [_]))
+  (alive? [_] "Returns wether the current emitter is alive or no")
+  (register-exception [_ t e]))
 
 (defn- collect-garbage
   "As we may potentially accumulate rather large amount of futures, we have to garbage-collect them."
@@ -39,6 +41,70 @@ Pretty much topic routing.")
 (defn extract-data
   [payload]
   (get-in payload [:data]))
+
+(defn- add-handler-intern
+  [handlers event-type handler]
+  (swap! handlers assoc event-type handler))
+
+(defn- delete-handler-intern
+  [handlers event-type]
+  (swap! handlers dissoc event-type))
+
+(deftype Emitter [handlers errors reactor]
+  IEmitter
+  (add-handler [this event-type handler]
+    (when (nil? (get handler event-type))
+      (add-handler-intern handlers event-type handler)
+      (mr/on reactor ($ event-type) (fn [e]
+                                      (run handler e)))))
+
+  (delete-handler [_ event-type]
+    (.unregister (.getConsumerRegistry reactor) event-type)
+    (swap! dissoc handlers event-type))
+
+  (swap-handler [this event-type f]
+    (delete-handler this event-type)
+    (add-handler this event-type f))
+
+  (notify [_ t args]
+    (mr/notify t args))
+
+  (! [this t args]
+    (notify this t args))
+
+  (get-handler [_]
+    @handlers)
+
+  (get-handler [_ t]
+    (t @handlers))
+
+  (stop [_]
+    (println
+     (-> reactor
+        (.getDispatcher)))
+    (-> reactor
+        (.getDispatcher)
+        (.shutdown)))
+
+  (alive? [_]
+    (-> reactor
+        (.getDispatcher)
+        (.alive)))
+
+  (register-exception [_ t e]
+    (.put errors t e))
+
+  (toString [_]
+    (str "Handlers: " (mapv #(.toString %) @handlers))))
+
+(defn new-emitter
+  "Creates a fresh Event Emitter with the default executor."
+  []
+  (Emitter. (atom {}) (ConcurrentHashMap.) (mr/create :dispatcher-type :ring-buffer)))
+
+;;
+;; Operations
+;;
 
 (deftype Aggregator [emitter f state_]
   IHandler
@@ -92,13 +158,9 @@ Pretty much topic routing.")
 
   (state [_] nil))
 
-(defn- add-handler-intern
-  [handlers event-type handler]
-  (swap! handlers assoc event-type handler))
-
-(defn- delete-handler-intern
-  [handlers event-type]
-  (swap! handlers dissoc event-type))
+;;
+;; Builder fns
+;;
 
 (defn deffilter
   "Defines a filter operation, that gets typed tuples, and rebroadcasts ones for which `filter-fn` returns true"
@@ -109,6 +171,8 @@ Pretty much topic routing.")
   "Defines a transformer, that gets typed tuples, transforms them with `transform-fn` and rebroadcasts them."
   [emitter t transform-fn rebroadcast]
   (add-handler emitter t (Transformer. emitter transform-fn rebroadcast)))
+
+
 
 (defn defaggregator
   "Defines an aggregator, that is initialized with `initial-state`, then gets typed tuples and aggregates state
@@ -135,51 +199,21 @@ Pretty much topic routing.")
   [emitter t f]
   (add-handler emitter t (Observer. emitter f)))
 
-(deftype Emitter [handlers reactor]
-  IEmitter
-  (add-handler [this event-type handler]
-    (when (nil? (get handler event-type))
-      (add-handler-intern handlers event-type handler)
-      (mr/on reactor ($ event-type) (fn [e]
-                                      (run handler e)))))
+;;
+;; Debug utils
+;;
 
-  (delete-handler [_ event-type]
-    (.unregister (.getConsumerRegistry reactor) event-type)
-    (swap! dissoc handlers event-type))
+(defmacro carefully
+  "Test macro, should only be used internally"
+  [emitter handler-type & body]
+  `(try
+     ~@body
+     (catch Exception e#
+       (register-exception ~emitter ~handler-type e#))))
 
-  (swap-handler [this event-type f]
-    (delete-handler this event-type)
-    (add-handler this event-type f))
-
-  (notify [_ t args]
-    (mr/notify t args))
-
-  (! [this t args]
-    (notify this t args))
-
-  (get-handler [_]
-    @handlers)
-
-  (get-handler [_ t]
-    (t @handlers))
-
-  (stop [_]
-    (println
-     (-> reactor
-        (.getDispatcher)))
-    (-> reactor
-        (.getDispatcher)
-        (.shutdown)))
-
-  (alive? [_]
-    (-> reactor
-        (.getDispatcher)
-        (.alive)))
-
-  (toString [_]
-    (str "Handlers: " (mapv #(.toString %) @handlers))))
-
-(defn new-emitter
-  "Creates a fresh Event Emitter with the default executor."
-  []
-  (Emitter. (atom {}) (mr/create :dispatcher-type :ring-buffer)))
+(defn wrap-carefully
+  "Helper method to help with debugging of complex flows, when something is failing and you don't really see why"
+  [emitter handler-type f]
+  (fn [a b]
+    (carefully emitter handler-type
+               (f a b))))

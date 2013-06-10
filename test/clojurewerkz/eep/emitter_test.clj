@@ -106,3 +106,11 @@
     (Thread/sleep 100)
     (is (= 6 (state (get-handler emitter :even))))
     (is (= 9 (state (get-handler emitter :odd))))))
+
+
+(deftest test-carefully
+  (let [emitter (new-emitter)]
+    (defaggregator emitter :entrypoint (wrap-carefully emitter :entrypoint +) 0)
+    (notify emitter :entrypoint "a")
+    (Thread/sleep 100)
+    (is (not (nil? (:entrypoint (.errors emitter)))))))
