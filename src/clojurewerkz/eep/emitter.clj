@@ -79,9 +79,6 @@ Pretty much topic routing.")
     (t @handlers))
 
   (stop [_]
-    (println
-     (-> reactor
-        (.getDispatcher)))
     (-> reactor
         (.getDispatcher)
         (.shutdown)))
