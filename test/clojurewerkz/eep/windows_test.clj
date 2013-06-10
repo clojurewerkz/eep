@@ -93,6 +93,7 @@
     (is (= 20 @last-val))
     (e/notify emitter :sliding-summing-window 7)
 
+    (Thread/sleep timespan)
     (is (= 25 @last-val))))
 
 (deftest emitter-tumbling-window-test
@@ -117,6 +118,7 @@
     (e/notify emitter :tumbling-summing-window 9)
     (e/notify emitter :tumbling-summing-window 10)
 
+    (Thread/sleep timespan)
     (is (= 40 @last-val))))
 
 (deftest emitter-monotonic-window-test
@@ -158,6 +160,7 @@
     (Thread/sleep timespan)
     (e/notify emitter :monotonic-summing-window 1)
 
+    (Thread/sleep timespan)
     (is (= 2 @last-val))))
 
 
