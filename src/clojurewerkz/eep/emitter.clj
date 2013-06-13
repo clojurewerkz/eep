@@ -97,7 +97,8 @@ Pretty much topic routing.")
 (defn new-emitter
   "Creates a fresh Event Emitter with the default executor."
   []
-  (Emitter. (atom {}) (ConcurrentHashMap.) (mr/create :dispatcher-type :ring-buffer)))
+  (let [reactor (mr/create :dispatcher-type :thread-pool)]
+    (Emitter. (atom {}) (ConcurrentHashMap.) reactor)))
 
 ;;
 ;; Operations
@@ -206,6 +207,7 @@ Pretty much topic routing.")
   `(try
      ~@body
      (catch Exception e#
+       (println "Exception occured while processing " ~handler-type ": " (.getMessage e#))
        (register-exception ~emitter ~handler-type e#))))
 
 (defn wrap-carefully
@@ -214,3 +216,15 @@ Pretty much topic routing.")
   (fn [a b]
     (carefully emitter handler-type
                (f a b))))
+
+(defn wrap-debug
+  "Helper method to help with debugging of complex flows, when something is failing and you don't really see why"
+  [emitter handler-type f]
+  (fn [a b]
+    (let [res (f a b)]
+      (println (format "%s - %s: Input: [%s, %s], Output: %s"
+                       (.getName (Thread/currentThread))
+                       handler-type
+                       a b
+                       res))
+      res)))
