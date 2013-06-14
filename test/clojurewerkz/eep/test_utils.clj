@@ -5,8 +5,9 @@
   "Countdown latch before executing function, proxy fn"
   [latch f]
   (fn [& values]
-    (.countDown @latch)
-    (apply f values)))
+    (let [res (apply f values)]
+      (.countDown @latch)
+      res)))
 
 (defn make-latch
   "Creates a new latch"
@@ -22,3 +23,10 @@
   "Awaits for latch for 500ms"
   [latch]
   (.await @latch 500 TimeUnit/MILLISECONDS))
+
+(defmacro after-latch
+  "Awaits for latch for 500ms"
+  [latch & body]
+  `(do
+     (.await (deref ~latch) 2000 TimeUnit/MILLISECONDS)
+     ~@body))

@@ -96,8 +96,8 @@ Pretty much topic routing.")
 
 (defn new-emitter
   "Creates a fresh Event Emitter with the default executor."
-  []
-  (let [reactor (mr/create :dispatcher-type :thread-pool)]
+  [&{:keys [dispatcher-type] :or {:dispatcher-type :thread-pool}}]
+  (let [reactor (mr/create :dispatcher-type dispatcher-type)]
     (Emitter. (atom {}) (ConcurrentHashMap.) reactor)))
 
 ;;
@@ -108,6 +108,19 @@ Pretty much topic routing.")
   IHandler
   (run [_ payload]
     (swap! state_ f (extract-data payload)))
+
+  (state [_]
+    @state_)
+
+  Object
+  (toString [_]
+    (str "Handler: " f ", state: " @state_) ))
+
+(deftype CommutativeAggregator [emitter f state_]
+  IHandler
+  (run [_ payload]
+    (dosync
+     (commute state_ f (extract-data payload))))
 
   (state [_]
     @state_)
@@ -170,13 +183,17 @@ Pretty much topic routing.")
   [emitter t transform-fn rebroadcast]
   (add-handler emitter t (Transformer. emitter transform-fn rebroadcast)))
 
-
-
 (defn defaggregator
   "Defines an aggregator, that is initialized with `initial-state`, then gets typed tuples and aggregates state
    by applying `aggregate-fn` to current state and tuple."
   [emitter t aggregate-fn initial-state]
   (add-handler emitter t (Aggregator. emitter aggregate-fn (atom initial-state))))
+
+(defn defcaggregator
+  "Defines a commutative aggregator, that is initialized with `initial-state`, then gets typed tuples and
+   aggregates state by applying `aggregate-fn` to current state and tuple."
+  [emitter t aggregate-fn initial-state]
+  (add-handler emitter t (CommutativeAggregator. emitter aggregate-fn (ref initial-state))))
 
 (defn defmulticast
   "Defines a multicast, that receives a typed tuple, and rebroadcasts them to several types of the given emitter."
