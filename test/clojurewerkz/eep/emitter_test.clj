@@ -149,3 +149,23 @@
     (Thread/sleep 100)
     (is (not (nil? (:entrypoint (.errors emitter)))))
     (stop emitter)))
+
+(deftest test-splitter-dsl
+  (let [latch   (make-latch 5)
+        f       (wrap-countdown latch +)
+        e       (new-emitter)
+        emitter (build-topology e
+                                :entrypoint (defsplitter (fn [i] (if (even? i) :even :odd)))
+                                :even (defaggregator f 0)
+                                :odd  (defaggregator f 0))]
+
+    (notify emitter :entrypoint 1)
+    (notify emitter :entrypoint 2)
+    (notify emitter :entrypoint 3)
+    (notify emitter :entrypoint 4)
+    (notify emitter :entrypoint 5)
+
+    (after-latch latch
+                 (is (= 6 (state (get-handler emitter :even))))
+                 (is (= 9 (state (get-handler emitter :odd)))))
+    (stop emitter)))

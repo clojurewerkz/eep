@@ -13,6 +13,15 @@
                 .availableProcessors
                 inc))
 
+(def ^:dynamic *emitter*)
+
+(defmacro with-emitter
+  "Helper macro for binding current emitter"
+  [emitter & body]
+  `(binding [*emitter* ~body]
+     ~@body
+     *emitter*))
+
 (defprotocol IHandler
   (run [_ args])
   (state [_]))
@@ -53,6 +62,7 @@ Pretty much topic routing.")
 (deftype Emitter [handlers errors reactor]
   IEmitter
   (add-handler [this event-type handler]
+
     (when (nil? (get handler event-type))
       (add-handler-intern handlers event-type handler)
       (mr/on reactor ($ event-type) (fn [e]
@@ -175,44 +185,58 @@ Pretty much topic routing.")
 
 (defn deffilter
   "Defines a filter operation, that gets typed tuples, and rebroadcasts ones for which `filter-fn` returns true"
-  [emitter t filter-fn rebroadcast]
-  (add-handler emitter t (Filter. emitter filter-fn rebroadcast)))
+  ([t filter-fn rebroadcast]
+     (deffilter *emitter* t filter-fn rebroadcast))
+  ([emitter t filter-fn rebroadcast]
+     (add-handler emitter t (Filter. emitter filter-fn rebroadcast))))
 
 (defn deftransformer
   "Defines a transformer, that gets typed tuples, transforms them with `transform-fn` and rebroadcasts them."
-  [emitter t transform-fn rebroadcast]
-  (add-handler emitter t (Transformer. emitter transform-fn rebroadcast)))
+  ([t transform-fn rebroadcast]
+     (deftransformer *emitter* t transform-fn rebroadcast))
+  ([emitter t transform-fn rebroadcast]
+     (add-handler emitter t (Transformer. emitter transform-fn rebroadcast))))
 
 (defn defaggregator
   "Defines an aggregator, that is initialized with `initial-state`, then gets typed tuples and aggregates state
    by applying `aggregate-fn` to current state and tuple."
-  [emitter t aggregate-fn initial-state]
-  (add-handler emitter t (Aggregator. emitter aggregate-fn (atom initial-state))))
+  ([t aggregate-fn initial-state]
+     (defaggregator *emitter* t aggregate-fn initial-state))
+  ([emitter t aggregate-fn initial-state]
+     (add-handler emitter t (Aggregator. emitter aggregate-fn (atom initial-state)))))
 
 (defn defcaggregator
   "Defines a commutative aggregator, that is initialized with `initial-state`, then gets typed tuples and
    aggregates state by applying `aggregate-fn` to current state and tuple."
-  [emitter t aggregate-fn initial-state]
-  (add-handler emitter t (CommutativeAggregator. emitter aggregate-fn (ref initial-state))))
+  ([t aggregate-fn initial-state]
+     (defcaggregator *emitter* t aggregate-fn initial-state))
+  ([emitter t aggregate-fn initial-state]
+     (add-handler emitter t (CommutativeAggregator. emitter aggregate-fn (ref initial-state)))))
 
 (defn defmulticast
   "Defines a multicast, that receives a typed tuple, and rebroadcasts them to several types of the given emitter."
-  [emitter t m]
-  (let [h (get-handler emitter t)]
-    (add-handler emitter t
-                 (Multicast. emitter
-                             (if (isa? Multicast h)
-                               (set (concat (.multicast-types h) m))
-                               (set m))))))
+  ([t m]
+     (defmulticast *emitter* t m))
+  ([emitter t m]
+     (let [h (get-handler emitter t)]
+       (add-handler emitter t
+                    (Multicast. emitter
+                                (if (isa? Multicast h)
+                                  (set (concat (.multicast-types h) m))
+                                  (set m)))))))
 
 (defn defsplitter
-  [emitter t split-fn]
-  (add-handler emitter t (Splitter. emitter split-fn)))
+  ([t split-fn]
+     (defsplitter *emitter* t split-fn))
+  ([emitter t split-fn]
+     (add-handler emitter t (Splitter. emitter split-fn))))
 
 (defn defobserver
   "Defines an observer, that runs (potentially with side-effects) f for tuples of given type."
-  [emitter t f]
-  (add-handler emitter t (Observer. emitter f)))
+  ([t f]
+     (defobserver *emitter* t f))
+  ([emitter t f]
+     (add-handler emitter t (Observer. emitter f))))
 
 ;;
 ;; Debug utils
@@ -245,3 +269,18 @@ Pretty much topic routing.")
                        a b
                        res))
       res)))
+
+(defmacro build*
+  [emitter body]
+  (for [[a b] (partition 2 body)]
+    (concat (list (first b) emitter a) (rest b))))
+
+(defmacro build-topology
+  "Builds aggregation topology from the given `hander-type` and handler builder."
+  ([emitter a b]
+     (concat (list (first b) emitter a) (rest b)))
+  ([emitter a b & more]
+      `(do
+         (build-topology ~emitter ~a ~b)
+         (build-topology ~emitter ~@more)
+         ~emitter)))
