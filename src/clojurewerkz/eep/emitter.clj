@@ -6,7 +6,7 @@
 
 (alter-var-root #'*out* (constantly *out*))
 
-(def global-handler :___global)
+(def global-handler :entrypoint)
 
 (def ^{:doc "Default thread pool size, calculated as # available processors + 1"}
   pool-size (-> (Runtime/getRuntime)
@@ -269,11 +269,6 @@ Pretty much topic routing.")
                        a b
                        res))
       res)))
-
-(defmacro build*
-  [emitter body]
-  (for [[a b] (partition 2 body)]
-    (concat (list (first b) emitter a) (rest b))))
 
 (defmacro build-topology
   "Builds aggregation topology from the given `hander-type` and handler builder."
