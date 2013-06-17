@@ -24,18 +24,18 @@ EEP is built from the ground up for Clojure 1.4 and up.
 
 ## Maven Artifacts
 
-### Snapshots
+### Most Recent Release
 
 With Leiningen:
 
-    [clojurewerkz/eep "0.1.0"]
+    [clojurewerkz/eep "0.3.0"]
 
 With Maven:
 
     <dependency>
       <groupId>clojurewerkz</groupId>
       <artifactId>eep</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.3.0</version>
     </dependency>
 
 
