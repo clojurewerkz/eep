@@ -169,3 +169,17 @@
                  (is (= 6 (state (get-handler emitter :even))))
                  (is (= 9 (state (get-handler emitter :odd)))))
     (stop emitter)))
+
+(deftest test-rollup
+  (let [emitter (new-emitter)]
+    (defrollup emitter :entrypoint 100 :buffer)
+    (defaggregator emitter :buffer keep-last nil)
+    (notify emitter :entrypoint 1)
+    (notify emitter :entrypoint 2)
+    (notify emitter :entrypoint 3)
+    (is (nil? (state (get-handler emitter :buffer))))
+    (Thread/sleep 110)
+    (is (= [1 2 3] (state (get-handler emitter :buffer))))))
+
+(deftest group-aggregate-test
+  (is (= {:a 4 :b 6} (group-aggregate stats/sum [[:a 1] [:b 2] [:a 3] [:b 4]]))))
