@@ -147,6 +147,18 @@ Pretty much topic routing.")
   (state [_]
     nil))
 
+(deftype Rollup [emitter f redistribute-t]
+  IHandler
+  (run [_ payload]
+    (f (extract-data payload)))
+
+  (state [_]
+    nil)
+
+  Object
+  (toString [_]
+    (str f ", " redistribute-t)))
+
 (deftype Filter [emitter filter-fn rebroadcast]
   IHandler
   (run [_ payload]
@@ -178,6 +190,13 @@ Pretty much topic routing.")
     (notify emitter rebroadcast (transform-fn (extract-data payload))))
 
   (state [_] nil))
+
+(deftype Buffer [emitter buf]
+  IHandler
+  (run [_ payload]
+    (swap! buf conj (extract-data payload)))
+
+  (state [_] (cb/to-vec @buf)))
 
 ;;
 ;; Builder fns
@@ -237,6 +256,21 @@ Pretty much topic routing.")
      (defobserver *emitter* t f))
   ([emitter t f]
      (add-handler emitter t (Observer. emitter f))))
+
+(defn defrollup
+  "Rollup is a timed window, that accumulates entries until it times out, and emits them
+   to the next processing part afterwards"
+  [emitter t period redistribute-t]
+  (let [window (ws/timed-window-simple
+                (cl/make-wall-clock period)
+                period identity
+                #(notify emitter redistribute-t %))]
+    (add-handler emitter t (Rollup. emitter window redistribute-t))))
+
+(defn defbuffer
+  "Defines a circular buffer with given `capacity`"
+  [emitter t capacity]
+  (add-handler emitter t (Buffer. emitter (atom (cb/circular-buffer capacity)))))
 
 ;;
 ;; Debug utils
