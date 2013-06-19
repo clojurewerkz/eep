@@ -1,6 +1,5 @@
 (ns clojurewerkz.eep.windows
-  (:require [clojurewerkz.eep.emitter :as e]
-            [clojurewerkz.eep.clocks :as clocks]
+  (:require [clojurewerkz.eep.clocks :as clocks]
             [com.ifesdjeen.utils.circular-buffer :as cb])
   (:import [java.util Timer TimerTask Date]))
 
@@ -54,8 +53,3 @@
     (.scheduleAtFixedRate timer task 0 tick-period)
     (fn [value]
       (swap! buffer conj value))))
-
-(defn defwindow
-  "Registers window with given handler name for given emitter, helper function"
-  [emitter n window]
-  (e/defobserver emitter n window))

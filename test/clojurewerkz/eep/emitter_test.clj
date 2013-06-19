@@ -71,7 +71,7 @@
 (deftest multicast-test
   (testing "Basic multicast abilities"
     (let [emitter (new-emitter :dispatcher-type :ring-buffer)
-          latch   (make-latch 3)
+          latch   (make-latch 9)
           f       (wrap-countdown latch +)]
       (defmulticast emitter :entrypoint [:summarizer1 :summarizer2 :summarizer3])
       (defaggregator emitter :summarizer1 f 0)
