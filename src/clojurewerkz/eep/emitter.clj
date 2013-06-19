@@ -1,10 +1,20 @@
 (ns ^{:doc "Generic event emitter implementation heavily inspired by gen_event in Erlang/OTP"}
   clojurewerkz.eep.emitter
-  (:require [clojurewerkz.meltdown.reactor   :as mr]
-            [clojurewerkz.meltdown.selectors :as ms :refer [$]])
+  (:require clojure.pprint
+            [clojurewerkz.meltdown.reactor   :as mr]
+            [clojurewerkz.meltdown.selectors :as ms :refer [$]]
+            [clojurewerkz.eep.windows        :as ws]
+            [clojurewerkz.eep.clocks         :as cl]
+            [com.ifesdjeen.utils.circular-buffer :as cb])
   (:import [java.util.concurrent ConcurrentHashMap]))
 
 (alter-var-root #'*out* (constantly *out*))
+
+(defn pprint-to-str
+  [& objs]
+  (let [w (java.io.StringWriter.)]
+    (clojure.pprint/pprint objs w)
+    (.toString w)))
 
 (def global-handler :entrypoint)
 
@@ -68,13 +78,16 @@ Pretty much topic routing.")
       (mr/on reactor ($ event-type) (fn [e]
                                       (run handler e)))))
 
-  (delete-handler [_ event-type]
-    (.unregister (.getConsumerRegistry reactor) event-type)
-    (swap! dissoc handlers event-type))
+  (delete-handler [this event-type]
+    (when-let [old-handler (get-handler this event-type)]
+      (.unregister (.getConsumerRegistry reactor) event-type)
+      (swap! handlers dissoc event-type)
+      old-handler))
 
   (swap-handler [this event-type f]
-    (delete-handler this event-type)
-    (add-handler this event-type f))
+    (let [old (delete-handler this event-type)]
+      (add-handler this event-type f)
+      old))
 
   (notify [_ t args]
     (mr/notify t args))
@@ -102,7 +115,7 @@ Pretty much topic routing.")
     (.put errors t e))
 
   (toString [_]
-    (str "Handlers: " (mapv #(.toString %) @handlers))))
+    (pprint-to-str "\n" (mapv #(.toString %) @handlers))))
 
 (defn new-emitter
   "Creates a fresh Event Emitter with the default executor."
@@ -124,7 +137,7 @@ Pretty much topic routing.")
 
   Object
   (toString [_]
-    (str "Handler: " f ", state: " @state_) ))
+    (pprint-to-str f @state_) ))
 
 (deftype CommutativeAggregator [emitter f state_]
   IHandler
@@ -174,7 +187,11 @@ Pretty much topic routing.")
     (doseq [t multicast-types]
       (notify emitter t (extract-data payload))))
 
-  (state [_] nil))
+  (state [_] nil)
+
+  Object
+  (toString [_]
+    (clojure.string/join ", " multicast-types)))
 
 (deftype Splitter [emitter split-fn]
   IHandler
@@ -182,7 +199,11 @@ Pretty much topic routing.")
     (let [data (extract-data payload)]
       (notify emitter (split-fn data) data)))
 
-  (state [_] nil))
+  (state [_] nil)
+
+  Object
+  (toString [_]
+    (clojure.string/join ", " [split-fn])))
 
 (deftype Transformer [emitter transform-fn rebroadcast]
   IHandler
@@ -237,10 +258,10 @@ Pretty much topic routing.")
   ([t m]
      (defmulticast *emitter* t m))
   ([emitter t m]
-     (let [h (get-handler emitter t)]
+     (let [h (delete-handler emitter t)]
        (add-handler emitter t
                     (Multicast. emitter
-                                (if (isa? Multicast h)
+                                (if (isa? Multicast (type h))
                                   (set (concat (.multicast-types h) m))
                                   (set m)))))))
 
@@ -313,3 +334,19 @@ Pretty much topic routing.")
          (build-topology ~emitter ~a ~b)
          (build-topology ~emitter ~@more)
          ~emitter)))
+
+;;
+;;
+;;
+
+(defn keep-last
+  "Aggregator helper function, always keeps only last value"
+  [_ last]
+  last)
+
+(defn group-aggregate
+  "Wrapper function for aggregators"
+  [aggregate-fn tuples]
+  (into {}
+        (for [[k vals] (group-by first tuples)]
+          [k (aggregate-fn (map last vals))])))
