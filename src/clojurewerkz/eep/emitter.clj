@@ -210,7 +210,11 @@ Pretty much topic routing.")
   (run [_ payload]
     (notify emitter rebroadcast (transform-fn (extract-data payload))))
 
-  (state [_] nil))
+  (state [_] nil)
+
+  Object
+  (toString [_]
+    (clojure.string/join ", " [transform-fn rebroadcast])))
 
 (deftype Buffer [emitter buf]
   IHandler
