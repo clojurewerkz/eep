@@ -179,7 +179,11 @@ Pretty much topic routing.")
       (when (filter-fn data)
         (notify emitter rebroadcast data))))
 
-  (state [_] nil))
+  (state [_] nil)
+
+  Object
+  (toString [_]
+    (str filter-fn ", " rebroadcast)))
 
 (deftype Multicast [emitter multicast-types]
   IHandler
@@ -353,4 +357,4 @@ Pretty much topic routing.")
   [aggregate-fn tuples]
   (into {}
         (for [[k vals] (group-by first tuples)]
-          [k (aggregate-fn (map last vals))])))
+          [k (aggregate-fn (map second vals))])))
