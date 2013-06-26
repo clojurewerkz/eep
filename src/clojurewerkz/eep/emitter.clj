@@ -292,7 +292,7 @@ Pretty much topic routing.")
   [emitter t period redistribute-t]
   (let [window (ws/timed-window-simple
                 (cl/make-wall-clock period)
-                period identity
+                (/ period 10) identity
                 #(notify emitter redistribute-t %))]
     (add-handler emitter t (Rollup. emitter window redistribute-t))))
 
