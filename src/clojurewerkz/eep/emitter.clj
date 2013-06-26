@@ -288,11 +288,11 @@ Pretty much topic routing.")
 
 (defn defrollup
   "Rollup is a timed window, that accumulates entries until it times out, and emits them
-   to the next processing part afterwards"
+   to the next processing part afterwards. Rollup resolution should not be less than 10 milliseconds."
   [emitter t period redistribute-t]
   (let [window (ws/timed-window-simple
                 (cl/make-wall-clock period)
-                (/ period 10) identity
+                10 identity
                 #(notify emitter redistribute-t %))]
     (add-handler emitter t (Rollup. emitter window redistribute-t))))
 
