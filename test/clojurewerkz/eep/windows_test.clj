@@ -10,7 +10,7 @@
   [buffer]
   (apply + buffer))
 
-(def timespan 10)
+(def timespan 100)
 
 (deftest simple-sliding-window-test
   (let [last-val (atom nil)
@@ -91,5 +91,5 @@
 
     (window 1)
     (window 1)
-    (Thread/sleep 150)
+    (Thread/sleep timespan)
     (is (= 2 @last-val))))
