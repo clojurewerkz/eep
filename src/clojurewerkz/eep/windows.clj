@@ -3,8 +3,6 @@
             [com.ifesdjeen.utils.circular-buffer :as cb])
   (:import [java.util Timer TimerTask Date]))
 
-(def timer (Timer. true))
-
 ;;
 ;; Implementation
 ;;
@@ -42,6 +40,7 @@
   [clock-orig tick-period aggregate emit-fn]
   (let [clock  (atom clock-orig)
         buffer (atom [])
+        timer  (Timer. true)
         task   (proxy [TimerTask] []
                  (run []
                    (swap! clock clocks/tick)
