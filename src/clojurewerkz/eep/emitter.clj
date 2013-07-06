@@ -23,15 +23,6 @@
                 .availableProcessors
                 inc))
 
-(def ^:dynamic *emitter*)
-
-(defmacro with-emitter
-  "Helper macro for binding current emitter"
-  [emitter & body]
-  `(binding [*emitter* ~body]
-     ~@body
-     *emitter*))
-
 (defprotocol IHandler
   (run [_ args])
   (state [_]))
@@ -233,58 +224,44 @@ Pretty much topic routing.")
 
 (defn deffilter
   "Defines a filter operation, that gets typed tuples, and rebroadcasts ones for which `filter-fn` returns true"
-  ([t filter-fn rebroadcast]
-     (deffilter *emitter* t filter-fn rebroadcast))
-  ([emitter t filter-fn rebroadcast]
-     (add-handler emitter t (Filter. emitter filter-fn rebroadcast))))
+  [emitter t filter-fn rebroadcast]
+  (add-handler emitter t (Filter. emitter filter-fn rebroadcast)))
 
 (defn deftransformer
   "Defines a transformer, that gets typed tuples, transforms them with `transform-fn` and rebroadcasts them."
-  ([t transform-fn rebroadcast]
-     (deftransformer *emitter* t transform-fn rebroadcast))
-  ([emitter t transform-fn rebroadcast]
-     (add-handler emitter t (Transformer. emitter transform-fn rebroadcast))))
+  [emitter t transform-fn rebroadcast]
+  (add-handler emitter t (Transformer. emitter transform-fn rebroadcast)))
 
 (defn defaggregator
   "Defines an aggregator, that is initialized with `initial-state`, then gets typed tuples and aggregates state
    by applying `aggregate-fn` to current state and tuple."
-  ([t aggregate-fn initial-state]
-     (defaggregator *emitter* t aggregate-fn initial-state))
-  ([emitter t aggregate-fn initial-state]
-     (add-handler emitter t (Aggregator. emitter aggregate-fn (atom initial-state)))))
+  [emitter t aggregate-fn initial-state]
+  (add-handler emitter t (Aggregator. emitter aggregate-fn (atom initial-state))))
 
 (defn defcaggregator
   "Defines a commutative aggregator, that is initialized with `initial-state`, then gets typed tuples and
    aggregates state by applying `aggregate-fn` to current state and tuple."
-  ([t aggregate-fn initial-state]
-     (defcaggregator *emitter* t aggregate-fn initial-state))
-  ([emitter t aggregate-fn initial-state]
-     (add-handler emitter t (CommutativeAggregator. emitter aggregate-fn (ref initial-state)))))
+  [emitter t aggregate-fn initial-state]
+  (add-handler emitter t (CommutativeAggregator. emitter aggregate-fn (ref initial-state))))
 
 (defn defmulticast
   "Defines a multicast, that receives a typed tuple, and rebroadcasts them to several types of the given emitter."
-  ([t m]
-     (defmulticast *emitter* t m))
-  ([emitter t m]
-     (let [h (delete-handler emitter t)]
-       (add-handler emitter t
-                    (Multicast. emitter
-                                (if (isa? Multicast (type h))
-                                  (set (concat (.multicast-types h) m))
-                                  (set m)))))))
+  [emitter t m]
+  (let [h (delete-handler emitter t)]
+    (add-handler emitter t
+                 (Multicast. emitter
+                             (if (isa? Multicast (type h))
+                               (set (concat (.multicast-types h) m))
+                               (set m))))))
 
 (defn defsplitter
-  ([t split-fn]
-     (defsplitter *emitter* t split-fn))
-  ([emitter t split-fn]
-     (add-handler emitter t (Splitter. emitter split-fn))))
+  [emitter t split-fn]
+  (add-handler emitter t (Splitter. emitter split-fn)))
 
 (defn defobserver
   "Defines an observer, that runs (potentially with side-effects) f for tuples of given type."
-  ([t f]
-     (defobserver *emitter* t f))
-  ([emitter t f]
-     (add-handler emitter t (Observer. emitter f))))
+  [emitter t f]
+  (add-handler emitter t (Observer. emitter f)))
 
 (defn defrollup
   "Rollup is a timed window, that accumulates entries until it times out, and emits them
