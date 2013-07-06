@@ -1,8 +1,8 @@
 (ns ^{:doc "Generic event emitter implementation heavily inspired by gen_event in Erlang/OTP"}
   clojurewerkz.eep.emitter
   (:require clojure.pprint
-            [clojurewerkz.meltdown.reactor   :as mr]
-            [clojurewerkz.meltdown.selectors :as ms :refer [$]]
+            [clojurewerkz.eep.reactor   :as mr]
+            [clojurewerkz.eep.selectors :as ms :refer [$]]
             [clojurewerkz.eep.windows        :as ws]
             [clojurewerkz.eep.clocks         :as cl]
             [com.ifesdjeen.utils.circular-buffer :as cb])
