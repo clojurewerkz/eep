@@ -90,7 +90,7 @@ Pretty much topic routing.")
       old))
 
   (notify [_ t args]
-    (mr/notify t args))
+    (mr/notify reactor t args))
 
   (! [this t args]
     (notify this t args))
