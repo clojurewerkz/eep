@@ -25,7 +25,8 @@
 
 (defprotocol IHandler
   (run [_ args])
-  (state [_]))
+  (state [_])
+  (downstream [_]))
 
 (defprotocol IEmitter
   (add-handler [_ event-type handler])
@@ -90,7 +91,7 @@ Pretty much topic routing.")
     @handlers)
 
   (get-handler [_ t]
-    (t @handlers))
+    (get @handlers t))
 
   (stop [_]
     (-> reactor
@@ -126,6 +127,8 @@ Pretty much topic routing.")
   (state [_]
     @state_)
 
+  (downstream [_] nil)
+
   Object
   (toString [_]
     (pprint-to-str f @state_) ))
@@ -139,6 +142,8 @@ Pretty much topic routing.")
   (state [_]
     @state_)
 
+  (downstream [_] nil)
+
   Object
   (toString [_]
     (str "Handler: " f ", state: " @state_) ))
@@ -149,7 +154,9 @@ Pretty much topic routing.")
     (f (extract-data payload)))
 
   (state [_]
-    nil))
+    nil)
+
+  (downstream [_] nil))
 
 (deftype Rollup [emitter f redistribute-t]
   IHandler
@@ -158,6 +165,8 @@ Pretty much topic routing.")
 
   (state [_]
     nil)
+
+  (downstream [_] [redistribute-t])
 
   Object
   (toString [_]
@@ -172,21 +181,25 @@ Pretty much topic routing.")
 
   (state [_] nil)
 
+  (downstream [_] [rebroadcast])
+
   Object
   (toString [_]
     (str filter-fn ", " rebroadcast)))
 
-(deftype Multicast [emitter multicast-types]
+(deftype Multicast [emitter rebroadcast-types]
   IHandler
   (run [_ payload]
-    (doseq [t multicast-types]
+    (doseq [t rebroadcast-types]
       (notify emitter t (extract-data payload))))
 
   (state [_] nil)
 
+  (downstream [_] rebroadcast-types)
+
   Object
   (toString [_]
-    (clojure.string/join ", " multicast-types)))
+    (clojure.string/join ", " rebroadcast-types)))
 
 (deftype Splitter [emitter split-fn]
   IHandler
@@ -195,6 +208,8 @@ Pretty much topic routing.")
       (notify emitter (split-fn data) data)))
 
   (state [_] nil)
+
+  (downstream [_] nil)
 
   Object
   (toString [_]
@@ -207,6 +222,8 @@ Pretty much topic routing.")
 
   (state [_] nil)
 
+  (downstream [_] [rebroadcast])
+
   Object
   (toString [_]
     (clojure.string/join ", " [transform-fn rebroadcast])))
@@ -216,7 +233,9 @@ Pretty much topic routing.")
   (run [_ payload]
     (swap! buf conj (extract-data payload)))
 
-  (state [_] (cb/to-vec @buf)))
+  (state [_] (cb/to-vec @buf))
+
+  (downstream [_] nil))
 
 ;;
 ;; Builder fns
