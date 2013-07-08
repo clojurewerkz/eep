@@ -1,5 +1,5 @@
 (ns clojurewerkz.eep.selectors
-  (:import reactor.fn.selector.Selector
+  (:import reactor.event.selector.Selector
            reactor.Fn))
 
 (defn ^Selector $

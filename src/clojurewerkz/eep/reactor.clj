@@ -1,11 +1,12 @@
 (ns clojurewerkz.eep.reactor
   (:import [reactor R]
            [reactor.core Reactor Environment]
-           [reactor.fn.dispatch ThreadPoolExecutorDispatcher Dispatcher RingBufferDispatcher]
+           [reactor.event.dispatch ThreadPoolExecutorDispatcher Dispatcher RingBufferDispatcher]
            [com.lmax.disruptor.dsl ProducerType]
            [com.lmax.disruptor YieldingWaitStrategy]
-           [reactor.fn.selector Selector]
-           [reactor.fn Consumer Event]
+           [reactor.event.selector Selector]
+           [reactor.function Consumer]
+           [reactor.event Event]
            clojure.lang.IFn
            clojure.lang.IPersistentMap))
 
@@ -40,10 +41,10 @@
   [& {:keys [dispatcher-type dispatcher env]}]
   (let [reactor (R/reactor)]
     (if env
-      (.using reactor env)
-      (.using reactor (environment)))
+      (.env reactor env)
+      (.env reactor (environment)))
     (when dispatcher
-      (.using reactor dispatcher))
+      (.dispatcher reactor dispatcher))
     (when dispatcher-type
       (.dispatcher reactor (dispatcher-type dispatcher-types)))
     (.get reactor)))
