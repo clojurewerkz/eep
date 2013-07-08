@@ -270,7 +270,7 @@ Pretty much topic routing.")
     (add-handler emitter t
                  (Multicast. emitter
                              (if (isa? Multicast (type h))
-                               (set (concat (.multicast-types h) m))
+                               (set (concat (.rebroadcast-types h) m))
                                (set m))))))
 
 (defn defsplitter
