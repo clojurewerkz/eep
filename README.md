@@ -13,7 +13,7 @@ eep-clj is heavily influenced by other EEP projects:
 
 ## Project Maturity
 
-EEP is a *very young* project. Nothing is considered stable or final.
+EEP is a *very young* and *experimental* project. Nothing is considered stable or final.
 
 
 
