@@ -1,6 +1,7 @@
 (ns ^{:doc "Generic event emitter implementation heavily inspired by gen_event in Erlang/OTP"}
   clojurewerkz.eep.emitter
   (:require clojure.pprint
+            [clojure.set :as s]
             [clojurewerkz.eep.reactor   :as mr]
             [clojurewerkz.eep.selectors :as ms :refer [$]]
             [clojurewerkz.eep.windows        :as ws]
@@ -289,6 +290,16 @@ Pretty much topic routing.")
                              (if (isa? Multicast (type h))
                                (set (concat (.rebroadcast-types h) m))
                                (set m))))))
+
+(defn undefmulticast
+  "Unregisters a multicast. If there're no downstreams for multicast, deregisters handler completely."
+  [emitter t m]
+  (let [multicast-types (s/difference
+                         (.rebroadcast-types (get-handler emitter t))
+                         (set m))]
+    (if (empty? multicast-types)
+      (delete-handler emitter t)
+      (add-handler emitter t (Multicast. emitter multicast-types)))))
 
 (defn defsplitter
   [emitter t split-fn]
