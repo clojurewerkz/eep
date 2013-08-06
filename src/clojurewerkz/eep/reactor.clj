@@ -1,5 +1,5 @@
 (ns clojurewerkz.eep.reactor
-  (:import [reactor R]
+  (:import [reactor.core.spec Reactors]
            [reactor.core Reactor Environment]
            [reactor.event.dispatch ThreadPoolExecutorDispatcher Dispatcher RingBufferDispatcher]
            [com.lmax.disruptor.dsl ProducerType]
@@ -39,7 +39,7 @@
 (defn ^Reactor create
   "Creates a reactor instance"
   [& {:keys [dispatcher-type dispatcher env]}]
-  (let [reactor (R/reactor)]
+  (let [reactor (Reactors/reactor)]
     (if env
       (.env reactor env)
       (.env reactor (environment)))

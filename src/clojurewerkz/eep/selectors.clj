@@ -1,11 +1,11 @@
 (ns clojurewerkz.eep.selectors
-  (:import reactor.event.selector.Selector
-           reactor.Fn))
+  (:import [reactor.event.selector Selector Selectors]
+           reactor.function.Fn))
 
 (defn ^Selector $
   [^String sel]
-  (Fn/$ sel))
+  (Selectors/$ sel))
 
 (defn ^Selector regex
   [^String regex]
-  (Fn/R regex))
+  (Selectors/R regex))
