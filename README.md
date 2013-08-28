@@ -14,9 +14,9 @@ eep-clj is heavily influenced by other EEP projects:
 ## Project Maturity
 
 EEP is a *very young* and *experimental* project, but it's been used in
-production for quite some time by now, and has proven it's stability. We
-hold off a release since underlying libraries do not yet have a stable
-version released.
+production for some time and is fairly stable bug-wise. The API may change
+significantly in the upcoming months, so use it at your own discretion.
+
 
 ## Quickstart
 
