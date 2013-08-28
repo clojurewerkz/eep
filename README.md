@@ -66,10 +66,10 @@ emitter, event type and payload:
     be number, symbol, keyword, string or anything else. All the events
     coming into `Emitter` have type associated with them.
 
-   * `Handler` is a function and optional state attached to it. Function is a
-     callback, executed whenever `Event Type` is matched for the
-     event. Single handler can be used for multiple `Event Types`, but
-     `Event Type` can only have one `Handler` at a time.
+  * `Handler` is a function and optional state attached to it. Function is a
+    callback, executed whenever `Event Type` is matched for the
+    event. Single handler can be used for multiple `Event Types`, but
+    `Event Type` can only have one `Handler` at a time.
 
 ## Handler types
 
