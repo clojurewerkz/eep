@@ -7,7 +7,7 @@
             [clojurewerkz.eep.clocks :as clocks]))
 
 (deftest aggregator-test
-  (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+  (let [emitter (create :dispatcher-type :ring-buffer)
         latch   (make-latch 3)]
     (defaggregator emitter :count (wrap-countdown latch +) 100)
 
@@ -19,7 +19,7 @@
     (stop emitter)))
 
 (deftest caggregator-test
-  (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+  (let [emitter (create :dispatcher-type :ring-buffer)
         latch   (make-latch 3)]
     (defcaggregator emitter :count (wrap-countdown latch +) 100)
 
@@ -31,7 +31,7 @@
     (stop emitter)))
 
 (deftest t-defobserver
-  (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+  (let [emitter (create :dispatcher-type :ring-buffer)
         latch   (make-latch 1)]
     (defaggregator emitter :count (wrap-countdown latch +) 100)
     (is (= 100 (state (get-handler emitter :count))))
@@ -42,7 +42,7 @@
                  (is (= 101 (state (get-handler emitter :count)))))
     (stop emitter))
 
-  (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+  (let [emitter (create :dispatcher-type :ring-buffer)
         latch   (java.util.concurrent.CountDownLatch. 5)]
     (defobserver emitter :countdown (fn [_]
                                       (.countDown latch)))
@@ -55,7 +55,7 @@
 ;; Add with-emitter macro that'd thread emitter through add-handler
 
 (deftest filter-pipe-test
-  (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+  (let [emitter (create :dispatcher-type :ring-buffer)
         latch   (make-latch 2)]
     (deffilter emitter :entrypoint even? :summarizer)
     (defaggregator emitter :summarizer (wrap-countdown latch +) 0)
@@ -70,7 +70,7 @@
 
 (deftest multicast-test
   (testing "Basic multicast abilities"
-    (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+    (let [emitter (create :dispatcher-type :ring-buffer)
           latch   (make-latch 9)
           f       (wrap-countdown latch +)]
       (defmulticast emitter :entrypoint [:summarizer1 :summarizer2 :summarizer3])
@@ -88,7 +88,7 @@
       (stop emitter)))
 
   (testing "Re-adding multicast"
-    (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+    (let [emitter (create :dispatcher-type :ring-buffer)
           latch   (make-latch 3)
           f       (wrap-countdown latch +)]
       (defmulticast emitter :entrypoint [:summarizer1])
@@ -109,7 +109,7 @@
       (stop emitter))))
 
 (deftest transform-test
-  (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+  (let [emitter (create :dispatcher-type :ring-buffer)
         latch   (make-latch 5)]
     (deftransformer emitter :entrypoint (partial * 2) :summarizer)
     (defaggregator emitter :summarizer (wrap-countdown latch +) 0)
@@ -124,7 +124,7 @@
     (stop emitter)))
 
 (deftest test-splitter
-  (let [emitter (new-emitter :dispatcher-type :ring-buffer)
+  (let [emitter (create :dispatcher-type :ring-buffer)
         latch   (make-latch 5)
         f       (wrap-countdown latch +)]
     (defsplitter emitter :entrypoint (fn [i] (if (even? i) :even :odd)))
@@ -143,7 +143,7 @@
 
 
 (deftest test-carefully
-  (let [emitter (new-emitter :dispatcher-type :ring-buffer)]
+  (let [emitter (create :dispatcher-type :ring-buffer)]
     (defaggregator emitter :entrypoint (wrap-carefully emitter :entrypoint +) 0)
     (notify emitter :entrypoint "a")
     (Thread/sleep 100)
@@ -153,7 +153,7 @@
 (deftest test-splitter-dsl
   (let [latch   (make-latch 5)
         f       (wrap-countdown latch +)
-        e       (new-emitter)
+        e       (create)
         emitter (build-topology e
                                 :entrypoint (defsplitter (fn [i] (if (even? i) :even :odd)))
                                 :even (defaggregator f 0)
@@ -171,7 +171,7 @@
     (stop emitter)))
 
 (deftest test-rollup
-  (let [emitter (new-emitter)]
+  (let [emitter (create)]
     (defrollup emitter :entrypoint 100 :buffer)
     (defaggregator emitter :buffer keep-last nil)
     (notify emitter :entrypoint 1)

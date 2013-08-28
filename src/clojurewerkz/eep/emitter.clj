@@ -17,8 +17,6 @@
     (clojure.pprint/pprint objs w)
     (.toString w)))
 
-(def global-handler :entrypoint)
-
 (def ^{:doc "Default thread pool size, calculated as # available processors + 1"}
   pool-size (-> (Runtime/getRuntime)
                 .availableProcessors
@@ -30,8 +28,8 @@
   (downstream [_]))
 
 (defprotocol IEmitter
-  (add-handler [_ event-type handler])
-  (handler-registered? [_ t f])
+  (add-handler [_ event-type handler] "Registers a handler on given emitter")
+  (handler-registered? [_ t] "Checks wether given type is registered on emitter")
   (delete-handler [_ t] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
   (get-handler [_] [_ t] "Returns all currently registered Handlers for Emitter")
@@ -77,6 +75,9 @@ Pretty much topic routing.")
       (swap! handlers dissoc event-type)
       old-handler))
 
+  (handler-registered? [this event-type]
+    (not (nil? (get @handlers event-type))))
+
   (swap-handler [this event-type f]
     (let [old (delete-handler this event-type)]
       (add-handler this event-type f)
@@ -110,7 +111,7 @@ Pretty much topic routing.")
   (toString [_]
     (pprint-to-str "\n" (mapv #(.toString %) @handlers))))
 
-(defn new-emitter
+(defn create
   "Creates a fresh Event Emitter with the default executor."
   [&{:keys [dispatcher-type] :or {:dispatcher-type :thread-pool}}]
   (let [reactor (mr/create :dispatcher-type dispatcher-type)]
@@ -236,11 +237,17 @@ Pretty much topic routing.")
 (deftype Transformer [emitter transform-fn rebroadcast]
   IHandler
   (run [_ payload]
-    (notify emitter rebroadcast (transform-fn (extract-data payload))))
+    (if (sequential? rebroadcast)
+      (doseq [t rebroadcast]
+        (notify emitter t (transform-fn (extract-data payload))))
+      (notify emitter rebroadcast (transform-fn (extract-data payload)))))
 
   (state [_] nil)
 
-  (downstream [_] [rebroadcast])
+  (downstream [_]
+    (if (sequential? rebroadcast)
+      rebroadcast
+      [rebroadcast]))
 
   Object
   (toString [_]
@@ -260,29 +267,35 @@ Pretty much topic routing.")
 ;;
 
 (defn deffilter
-  "Defines a filter operation, that gets typed tuples, and rebroadcasts ones for which `filter-fn` returns true"
+  "Defines a filter operation, that receives events of a type `t`, and rebroadcasts ones
+   for which `filter-fn` returns true"
   [emitter t filter-fn rebroadcast]
   (add-handler emitter t (Filter. emitter filter-fn rebroadcast)))
 
 (defn deftransformer
-  "Defines a transformer, that gets typed tuples, transforms them with `transform-fn` and rebroadcasts them."
+  "Defines a transformer, that gets tuples events of a type `t`, transforms them with `transform-fn`
+   and rebroadcasts them to `rebroadcast` handlers."
   [emitter t transform-fn rebroadcast]
   (add-handler emitter t (Transformer. emitter transform-fn rebroadcast)))
 
+(def defmap deftransformer)
+
 (defn defaggregator
-  "Defines an aggregator, that is initialized with `initial-state`, then gets typed tuples and aggregates state
-   by applying `aggregate-fn` to current state and tuple."
+  "Defines an aggregator, that is initialized with `initial-state`, then gets events of a type `t`
+   and aggregates state by applying `aggregate-fn` to current state and incoming event."
   [emitter t aggregate-fn initial-state]
   (add-handler emitter t (Aggregator. emitter aggregate-fn (atom initial-state))))
 
+(def defreduce defaggregator)
+
 (defn defcaggregator
-  "Defines a commutative aggregator, that is initialized with `initial-state`, then gets typed tuples and
-   aggregates state by applying `aggregate-fn` to current state and tuple."
+  "Defines a commutative aggregator, that is initialized with `initial-state`, then gets of
+   a type `t` and aggregates state by applying `aggregate-fn` to current state and tuple."
   [emitter t aggregate-fn initial-state]
   (add-handler emitter t (CommutativeAggregator. emitter aggregate-fn (ref initial-state))))
 
 (defn defmulticast
-  "Defines a multicast, that receives a typed tuple, and rebroadcasts them to several types of the given emitter."
+  "Defines a multicast, that receives events of a type `t`, and rebroadcasts them to several other handlers."
   [emitter t m]
   (let [h (delete-handler emitter t)]
     (add-handler emitter t
