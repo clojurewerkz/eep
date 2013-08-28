@@ -1,10 +1,11 @@
-(defproject clojurewerkz/eep "0.5.2"
+(defproject clojurewerkz/eep "1.0.0-alpha1"
   :description "Embedded Event Processing in Clojure"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.0"]
                  [com.ifesdjeen/utils "0.4.0"]
-                 [clojurewerkz/meltdown "1.0.0-alpha1"]]
+                 [clojurewerkz/meltdown "1.0.0-alpha1"]
+                 [rhizome "0.1.9"]]
   :profiles {:1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.6 {:dependencies [[org.clojure/clojure "1.6.0-master-SNAPSHOT"]]}
              :master {:dependencies [[org.clojure/clojure "1.6.0-master-SNAPSHOT"]]}
