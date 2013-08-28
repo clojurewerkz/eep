@@ -1,4 +1,5 @@
 (ns clojurewerkz.eep.test-utils
+  (:use clojure.test)
   (:import [java.util.concurrent CountDownLatch TimeUnit]))
 
 (defn wrap-countdown
@@ -28,5 +29,14 @@
   "Awaits for latch for 500ms"
   [latch & body]
   `(do
-     (.await (deref ~latch) 2000 TimeUnit/MILLISECONDS)
+     (assert (.await (deref ~latch) 2000 TimeUnit/MILLISECONDS)
+             "Waited for latch, but it never came...")
      ~@body))
+
+(defmacro with-latch
+  [countdown-from & body]
+  `(let [latch# (CountDownLatch. ~countdown-from)
+         ~'latch latch#]
+     ~@body
+     (.await latch# 1 TimeUnit/SECONDS)
+     (is (= 0 (.getCount latch#)))))
