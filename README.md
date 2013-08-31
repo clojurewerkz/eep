@@ -18,18 +18,37 @@ production for some time and is fairly stable bug-wise. The API may change
 significantly in the upcoming months, so use it at your own discretion.
 
 
-## Quickstart
+## Maven Artifacts
 
-In order to create an emitter `create` function:
+### Most Recent Release
+
+With Leiningen:
+
+    [clojurewerkz/eep "1.0.0-aplha1"]
+
+With Maven:
+
+    <dependency>
+      <groupId>clojurewerkz</groupId>
+      <artifactId>eep</artifactId>
+      <version>1.0.0-aplha1</version>
+    </dependency>
+
+
+## Documentation & Examples
+
+### Quickstart
+
+In order to create an emitter, use `clojurewerkz.eep.emitter/create` function:
 
 ```clj
 (ns my-eep-ns
-  (:use clojurewerkz.eep.emitter))
+  (:require clojurewerkz.eep.emitter :refer :all))
 
 (def emitter (create :dispatcher-type :ring-buffer))
 ```
 
-You can register handlers on emitter by using handler helper
+You can register even handlers on an emitter by using handler helper
 functions. For example, in order to calculate sums for even and odd
 numbers, you can first define a `splitter` and then two `aggregators`,
 one for given and one for odd ones:
@@ -44,8 +63,8 @@ one for given and one for odd ones:
 Here, `:entrypoint`, `:even` and `:odd` are event types, unique event
 identifiers.
 
-In order to push data to emitter, use `notify` function by giving it an
-emitter, event type and payload:
+In order to push data to emitter, use `clojurewerkz.eep.emitter/notify`,
+which takes an emitter, event type and payload:
 
 ```clj
 (notify emitter :entrypoint 1)
@@ -58,18 +77,18 @@ emitter, event type and payload:
   * `Emitter` is responsible for handler registration and event
     routing. It holds everything together.
 
-  * `Event` is a tuple dispatched by world into the emitter. Event is an
+  * `Event`s are dispatched by user code. An event is an
     arbitrary tuple of user-defined structure. There's no validation
-    provided internally for structure.
+    provided for it.
 
   * `Event Type` is a unique event type identifier, used for routing. It can
-    be number, symbol, keyword, string or anything else. All the events
-    coming into `Emitter` have type associated with them.
+    be a number, a symbol, a keyword, a string or anything else. All the events
+    coming into `Emitter` have a type.
 
-  * `Handler` is a function and optional state attached to it. Function is a
-    callback, executed whenever `Event Type` is matched for the
-    event. Single handler can be used for multiple `Event Types`, but
-    `Event Type` can only have one `Handler` at a time.
+  * `Handler` is a function and optional state attached to it. The function acts as a
+    callback, executed whenever an event is matched on the type.
+    The same handler can be used for multiple event types, but
+    an event type can only have one handler at most.
 
 ## Handler types
 
@@ -168,29 +187,7 @@ other hand, `aggregator`, `buffer` and `rollup` are stateful.
 
 ## Supported Clojure Versions
 
-EEP is built from the ground up for Clojure 1.4 and up.
-
-
-## Maven Artifacts
-
-### Most Recent Release
-
-With Leiningen:
-
-    [clojurewerkz/eep "1.0.0-aplha1"]
-
-With Maven:
-
-    <dependency>
-      <groupId>clojurewerkz</groupId>
-      <artifactId>eep</artifactId>
-      <version>1.0.0-aplha1</version>
-    </dependency>
-
-
-## Documentation & Examples
-
-Documentation site is not ready yet.
+EEP requires Clojure 1.4+.
 
 
 ## Development
