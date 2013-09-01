@@ -4,6 +4,11 @@
 
 Meltown alpha3 is a release with minor API additions.
 
+### Added more options to emitter constructor
+
+It is now possible to pass backing Dispatcher for reactor that's handling routing for the
+Emitter and an environment.
+
 ## Changes between 1.0.0-alpha2 and 1.0.0-alpha3
 
 ### Added an option to pass timer to timed window
