@@ -37,17 +37,18 @@
       (swap! buffer conj value))))
 
 (defn timed-window-simple
-  [clock-orig tick-period aggregate emit-fn]
-  (let [clock  (atom clock-orig)
-        buffer (atom [])
-        timer  (Timer. true)
-        task   (proxy [TimerTask] []
-                 (run []
-                   (swap! clock clocks/tick)
-                   (when (clocks/elapsed? @clock)
-                     (emit-fn (aggregate @buffer))
-                     (reset! buffer [])
-                     (swap! clock clocks/reset))))]
-    (.scheduleAtFixedRate timer task 0 tick-period)
-    (fn [value]
-      (swap! buffer conj value))))
+  ([clock-orig tick-period aggregate emit-fn]
+     (timed-window-simple clock-orig tick-period aggregate emit-fn  (Timer. true)))
+  ([clock-orig tick-period aggregate emit-fn timer]
+      (let [clock  (atom clock-orig)
+            buffer (atom [])
+            task   (proxy [TimerTask] []
+                     (run []
+                       (swap! clock clocks/tick)
+                       (when (clocks/elapsed? @clock)
+                         (emit-fn (aggregate @buffer))
+                         (reset! buffer [])
+                         (swap! clock clocks/reset))))]
+        (.scheduleAtFixedRate timer task 0 tick-period)
+        (fn [value]
+          (swap! buffer conj value)))))
