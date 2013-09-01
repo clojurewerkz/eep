@@ -29,7 +29,6 @@
 
 (defprotocol IEmitter
   (add-handler [_ event-type handler] "Registers a handler on given emitter")
-  (handler-registered? [_ t] "Checks wether given type is registered on emitter")
   (delete-handler [_ t] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
   (get-handler [_] [_ t] "Returns all currently registered Handlers for Emitter")
@@ -75,9 +74,6 @@ Pretty much topic routing.")
       (swap! handlers dissoc event-type)
       old-handler))
 
-  (handler-registered? [this event-type]
-    (not (nil? (get @handlers event-type))))
-
   (swap-handler [this event-type f]
     (let [old (delete-handler this event-type)]
       (add-handler this event-type f)
@@ -113,8 +109,8 @@ Pretty much topic routing.")
 
 (defn create
   "Creates a fresh Event Emitter with the default executor."
-  [&{:keys [dispatcher-type] :or {:dispatcher-type :thread-pool}}]
-  (let [reactor (mr/create :dispatcher-type dispatcher-type)]
+  [&{:keys [dispatcher-type dispatcher env]}]
+  (let [reactor (mr/create :dispatcher-type dispatcher-type :dispatcher dispatcher :env env)]
     (Emitter. (atom {}) (ConcurrentHashMap.) reactor)))
 
 ;;
