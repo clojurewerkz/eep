@@ -183,3 +183,9 @@
 
 (deftest group-aggregate-test
   (is (= {:a 4 :b 6} (group-aggregate stats/sum [[:a 1] [:b 2] [:a 3] [:b 4]]))))
+
+(deftest emitter-stop-alive-test
+  (let [emitter (create :dispatcher-type :ring-buffer)]
+    (is (alive? emitter))
+    (stop emitter)
+    (is (not (alive? emitter)))))
