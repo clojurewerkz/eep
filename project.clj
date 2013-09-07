@@ -1,4 +1,4 @@
-(defproject clojurewerkz/eep "1.0.0-alpha4"
+(defproject clojurewerkz/eep "1.0.0-alpha5-SNAPSHOT"
   :description "Embedded Event Processing in Clojure"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
