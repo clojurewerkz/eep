@@ -24,14 +24,14 @@ significantly in the upcoming months, so use it at your own discretion.
 
 With Leiningen:
 
-    [clojurewerkz/eep "1.0.0-aplha1"]
+    [clojurewerkz/eep "1.0.0-alpha4"]
 
 With Maven:
 
     <dependency>
       <groupId>clojurewerkz</groupId>
       <artifactId>eep</artifactId>
-      <version>1.0.0-aplha1</version>
+      <version>1.0.0-alpha4</version>
     </dependency>
 
 

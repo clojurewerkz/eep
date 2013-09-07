@@ -4,6 +4,14 @@
 
 Meltown alpha3 is a release with minor API additions.
 
+### Fixed problem with RingBuffer dispatcher overflow
+
+RingBuffer operates in it's own pool, adding notifications blocks RingBuffer's yielding,
+therefore makes notify function block eternally.
+
+In order to verify this and avoid having similar problems in future, corresponding
+throughput tests with realistic numbers were added.
+
 ### Added more options to emitter constructor
 
 It is now possible to pass backing Dispatcher for reactor that's handling routing for the
