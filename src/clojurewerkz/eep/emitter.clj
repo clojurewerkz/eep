@@ -3,11 +3,13 @@
   (:require clojure.pprint
             [clojure.set :as s]
             [clojurewerkz.meltdown.reactor :as mr]
+            [clojurewerkz.meltdown.consumers :as mc]
             [clojurewerkz.meltdown.selectors :as ms :refer [$]]
             [clojurewerkz.eep.windows        :as ws]
             [clojurewerkz.eep.clocks         :as cl]
             [com.ifesdjeen.utils.circular-buffer :as cb])
-  (:import [java.util.concurrent ConcurrentHashMap]))
+  (:import [java.util.concurrent ConcurrentHashMap Executors ExecutorService]
+           [reactor.event Event]))
 
 (alter-var-root #'*out* (constantly *out*))
 
@@ -22,6 +24,12 @@
                 .availableProcessors
                 inc))
 
+(defonce notify-pool (Executors/newFixedThreadPool (int pool-size)))
+
+(defn sync-submit
+  [f]
+  (.submit notify-pool ^Callable f))
+
 (defprotocol IHandler
   (run [_ args])
   (state [_])
@@ -32,7 +40,9 @@
   (delete-handler [_ t] "Removes the handler `f` from the current emitter, that's used for event
 type `t`. ")
   (get-handler [_] [_ t] "Returns all currently registered Handlers for Emitter")
-  (notify [_ type args] "Asynchronous (default) event dispatch function. All the Handlers (both
+  (notify-in-pool [_ type args] "Asynchronous event dispatch function. Should be used for all cases when
+notification is done from Handler")
+  (notify [_ type args] "Synchronous (default) event dispatch function. All the Handlers (both
 stateful and stateless). Pretty much direct routing.")
   (notify-some [_ type-checker args] "Asynchronous notification, with function that matches an event type.
 Pretty much topic routing.")
@@ -41,15 +51,6 @@ Pretty much topic routing.")
   (stop [_] "Cancels all pending tasks, stops event emission.")
   (alive? [_] "Returns wether the current emitter is alive or no")
   (register-exception [_ t e]))
-
-(defn- collect-garbage
-  "As we may potentially accumulate rather large amount of futures, we have to garbage-collect them."
-  [futures]
-  (filter #(not (.isDone %)) futures))
-
-(defn extract-data
-  [payload]
-  (get-in payload [:data]))
 
 (defn- add-handler-intern
   [handlers event-type handler]
@@ -65,8 +66,10 @@ Pretty much topic routing.")
 
     (when (nil? (get handler event-type))
       (add-handler-intern handlers event-type handler)
-      (mr/on reactor ($ event-type) (fn [e]
-                                      (run handler e)))))
+      (mr/register-consumer reactor ($ event-type) (mc/from-fn-raw
+                                                    (fn [^Event e]
+                                                      (run handler (.getData e)))))
+      (.select (.getConsumerRegistry reactor) event-type)))
 
   (delete-handler [this event-type]
     (when-let [old-handler (get-handler this event-type)]
@@ -80,7 +83,11 @@ Pretty much topic routing.")
       old))
 
   (notify [_ t args]
-    (mr/notify reactor t args))
+    (mr/notify-raw ^Reactor reactor t (Event. args)))
+
+  (notify-in-pool [_ t args]
+    (sync-submit
+     #(mr/notify-raw ^Reactor reactor t (Event. args))))
 
   (! [this t args]
     (notify this t args))
@@ -120,7 +127,7 @@ Pretty much topic routing.")
 (deftype Aggregator [emitter f state_]
   IHandler
   (run [_ payload]
-    (swap! state_ f (extract-data payload)))
+    (swap! state_ f payload))
 
   (state [_]
     @state_)
@@ -135,7 +142,7 @@ Pretty much topic routing.")
   IHandler
   (run [_ payload]
     (dosync
-     (commute state_ f (extract-data payload))))
+     (commute state_ f payload)))
 
   (state [_]
     @state_)
@@ -151,7 +158,7 @@ Pretty much topic routing.")
   (let [h (reify
             IHandler
             (run [self payload]
-              (run-fn self (extract-data payload)))
+              (run-fn self payload))
 
             (state [self]
               (state-fn self))
@@ -166,7 +173,7 @@ Pretty much topic routing.")
 (deftype Observer [emitter f]
   IHandler
   (run [_ payload]
-    (f (extract-data payload)))
+    (f payload))
 
   (state [_]
     nil)
@@ -176,7 +183,7 @@ Pretty much topic routing.")
 (deftype Rollup [emitter f redistribute-t]
   IHandler
   (run [_ payload]
-    (f (extract-data payload)))
+    (f payload))
 
   (state [_]
     nil)
@@ -190,9 +197,9 @@ Pretty much topic routing.")
 (deftype Filter [emitter filter-fn rebroadcast]
   IHandler
   (run [_ payload]
-    (let [data (extract-data payload)]
+    (let [data payload]
       (when (filter-fn data)
-        (notify emitter rebroadcast data))))
+        (notify-in-pool emitter rebroadcast data))))
 
   (state [_] nil)
 
@@ -206,7 +213,7 @@ Pretty much topic routing.")
   IHandler
   (run [_ payload]
     (doseq [t rebroadcast-types]
-      (notify emitter t (extract-data payload))))
+      (notify-in-pool emitter t payload)))
 
   (state [_] nil)
 
@@ -219,8 +226,8 @@ Pretty much topic routing.")
 (deftype Splitter [emitter split-fn]
   IHandler
   (run [_ payload]
-    (let [data (extract-data payload)]
-      (notify emitter (split-fn data) data)))
+    (let [data payload]
+      (notify-in-pool emitter (split-fn data) data)))
 
   (state [_] nil)
 
@@ -235,8 +242,8 @@ Pretty much topic routing.")
   (run [_ payload]
     (if (sequential? rebroadcast)
       (doseq [t rebroadcast]
-        (notify emitter t (transform-fn (extract-data payload))))
-      (notify emitter rebroadcast (transform-fn (extract-data payload)))))
+        (notify-in-pool emitter t (transform-fn payload)))
+      (notify-in-pool emitter rebroadcast (transform-fn payload))))
 
   (state [_] nil)
 
@@ -252,7 +259,7 @@ Pretty much topic routing.")
 (deftype Buffer [emitter buf]
   IHandler
   (run [_ payload]
-    (swap! buf conj (extract-data payload)))
+    (swap! buf conj payload))
 
   (state [_] (cb/to-vec @buf))
 

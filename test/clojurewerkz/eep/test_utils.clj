@@ -23,14 +23,15 @@
 (defn await-latch
   "Awaits for latch for 500ms"
   [latch]
-  (.await @latch 500 TimeUnit/MILLISECONDS))
+  (.await @latch 1000 TimeUnit/MILLISECONDS))
 
 (defmacro after-latch
   "Awaits for latch for 500ms"
   [latch & body]
   `(do
      (assert (.await (deref ~latch) 2000 TimeUnit/MILLISECONDS)
-             "Waited for latch, but it never came...")
+             (str "Waited for latch, but it never came... Still "
+                  (.getCount (deref ~latch)) " to go."))
      ~@body))
 
 (defmacro with-latch
