@@ -198,6 +198,9 @@ way:
                 :odd  (defaggregator f 0))
 ```
 
+You can also visualise your topology by calling `clojurewerkz.eep.visualization/visualise-graph`
+and giving it an emitter.
+
 ## Busy-spin
 
 Whenever you create an emitter, you may notice that one of your cores is 100% busy. You should
