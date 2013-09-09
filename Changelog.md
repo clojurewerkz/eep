@@ -1,7 +1,17 @@
 ## Changes between 1.0.0-alpha4 and 1.0.0-alpha5
 
-No changes yet
+### Added optional `downstreams` argument for properly visualising `Splitter`.
 
+Since Splitter only receives a function that's responsible for routing, it's impossible
+for EEP to know where the events are routed after split. You can define a splitter
+with an array of all possible splits to make visualisation possible.
+
+For exmaple, following splitter will split events to even and odd ones. Along with
+splitter function, pass an vector of `[:even :odd]` so that visualiser would catch it.
+
+```clj
+(defsplitter *emitter* :entrypoint (fn [i] (if (even? i) :even :odd)) [:even :odd])
+```
 
 ## Changes between 1.0.0-alpha3 and 1.0.0-alpha4
 
