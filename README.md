@@ -198,6 +198,8 @@ way:
                 :odd  (defaggregator f 0))
 ```
 
+## Topology visualisation
+
 You can also visualise your topology by calling `clojurewerkz.eep.visualization/visualise-graph`
 and giving it an emitter. You'll get an image like this one:
 
