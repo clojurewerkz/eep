@@ -250,7 +250,7 @@ Useful to accumulate `size` elements and aggreagate on overflow.
 
 ### Monotonic window
 
-makes a clock tick on every call. Whenever clock is elapsed, emits to aggregator.
+Makes a clock tick on every call. Whenever clock is elapsed, emits to aggregator.
 
 In essence, it's an alternative implementation of tumbling-window that allows
 to use custom emission control rather than having a buffer overflow check.
