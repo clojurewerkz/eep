@@ -198,6 +198,12 @@ way:
                 :odd  (defaggregator f 0))
 ```
 
+## Busy-spin
+
+Whenever you create an emitter, you may notice that one of your cores is 100% busy. You should
+not worry about it, since all dispatchers use a tight loop for dispatch, without sleeping, therefore
+not yielding control back to OS, so OS defines that as 100% processor load.
+
 ## Supported Clojure Versions
 
 EEP requires Clojure 1.4+.
