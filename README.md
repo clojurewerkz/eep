@@ -193,13 +193,13 @@ way:
 
 ```clj
 (build-topology (create)
-                :entrypoint (defsplitter (fn [i] (if (even? i) :even :odd)))
+                :entrypoint (defsplitter (fn [i] (if (even? i) :even :odd)) [:even :odd])
                 :even (defaggregator f 0)
                 :odd  (defaggregator f 0))
 ```
 
 You can also visualise your topology by calling `clojurewerkz.eep.visualization/visualise-graph`
-and giving it an emitter.
+and giving it an emitter. You'll get an image like [this one](https://www.evernote.com/shard/s9/sh/96e37ed1-59ea-4ac4-9bdd-cde6a48233e4/dadc6e1a874ac41777cac3e53a1cf79b).
 
 ## Busy-spin
 
