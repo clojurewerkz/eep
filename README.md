@@ -205,7 +205,69 @@ and giving it an emitter. You'll get an image like this one:
 
 [![Topology Visualisation Example](http://coffeenco.de/assets/images/topology_example.png)](http://coffeenco.de/assets/images/topology_example.png)
 
+## Windows
 
+Windows and buffers are an essential part of event processing.
+We've added the most important implementations of windowed
+oprations, such as sliding, tumbling, monotonic and timed windows
+to EEP to allow you to use them within topologies.
+
+### Sliding window
+
+Sliding windows have a fixed a-priori known size.
+
+Example: Sliding window of size 2 computing sum of values.
+
+```
+    t0     t1      (emit)   t2             (emit)       tN
+  +---+  +---+---+          -...-...-
+  | 1 |  | 2 | 1 |   <3>    : x : x :
+  +---+  +---+---+          _...+---+---+               ...
+             | 2 |              | 2 | 3 |    <5>
+             +---+              +---+---+
+                                    | 4 |
+                                    +---+
+```
+
+Useful to hold last `size` elements.
+
+### Tumbling window
+
+Tumbling windows (here) have a fixed a-priori known size.
+
+Example: Tumbling window of size 2 computing sum of values.
+
+```
+    t0     t1      (emit)    t2            t3         (emit)    t4
+  +---+  +---+---+         -...-...-
+  | 1 |  | 2 | 1 |   <3>   : x : x :
+  +---+  +---+---+         -...+---+---+   +---+---+            ...
+                                   | 3 |   | 4 | 3 |    <7>
+                                   +---+   +---+---+
+```
+
+Useful to accumulate `size` elements and aggreagate on overflow.
+
+### Monotonic window
+
+makes a clock tick on every call. Whenever clock is elapsed, emits to aggregator.
+
+In essence, it's an alternative implementation of tumbling-window that allows
+to use custom emission control rather than having a buffer overflow check.
+
+Useful for cases when emission should be controlled by arbitrary function,
+possibly unrelated to window contents.
+
+### Timed window
+
+A simple timed window, that runs on wall clock. Receives events and stores them
+until clock is elapsed, emits for aggregation after that.
+
+In essence, it's an alternative implementation of tumbling-window or monotonic-window
+that allows wall clock control.
+
+Useful for accumulating events for time-bound events processing, accumulates events
+for a certain period of time (for example, 1 minute), and aggregates them.
 
 ## Busy-spin
 
