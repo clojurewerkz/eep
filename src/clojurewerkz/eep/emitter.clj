@@ -223,7 +223,7 @@ Pretty much topic routing.")
   (toString [_]
     (clojure.string/join ", " rebroadcast-types)))
 
-(deftype Splitter [emitter split-fn]
+(deftype Splitter [emitter split-fn downstreams]
   IHandler
   (run [_ payload]
     (let [data payload]
@@ -231,7 +231,7 @@ Pretty much topic routing.")
 
   (state [_] nil)
 
-  (downstream [_] nil)
+  (downstream [_] downstreams)
 
   Object
   (toString [_]
@@ -318,8 +318,10 @@ Pretty much topic routing.")
       (add-handler emitter t (Multicast. emitter multicast-types)))))
 
 (defn defsplitter
-  [emitter t split-fn]
-  (add-handler emitter t (Splitter. emitter split-fn)))
+  ([emitter t split-fn]
+     (defsplitter emitter t split-fn nil))
+  ([emitter t split-fn downstreams]
+     (add-handler emitter t (Splitter. emitter split-fn downstreams))))
 
 (defn defobserver
   "Defines an observer, that runs (potentially with side-effects) f for tuples of given type."
