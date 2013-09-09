@@ -378,10 +378,10 @@ Pretty much topic routing.")
   ([emitter a b]
      (concat (list (first b) emitter a) (rest b)))
   ([emitter a b & more]
-      `(do
-         (build-topology ~emitter ~a ~b)
-         (build-topology ~emitter ~@more)
-         ~emitter)))
+     `(do
+        (build-topology ~emitter ~a ~b)
+        (build-topology ~emitter ~@more)
+        ~emitter)))
 
 ;;
 ;;

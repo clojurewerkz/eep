@@ -185,6 +185,19 @@ Handlers may be stateful and stateless. `filter`, `splitter`,
 `transformer`, `multicast` and `observer` are __stateless__. On the
 other hand, `aggregator`, `buffer` and `rollup` are stateful.
 
+## Toplogy DSL
+
+There's a DSL that threads emitter through all handler declarations,
+in order to greate aggregation topologies in a more concise and obvious
+way:
+
+```clj
+(build-topology (create)
+                :entrypoint (defsplitter (fn [i] (if (even? i) :even :odd)))
+                :even (defaggregator f 0)
+                :odd  (defaggregator f 0))
+```
+
 ## Supported Clojure Versions
 
 EEP requires Clojure 1.4+.
