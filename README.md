@@ -201,7 +201,7 @@ way:
 You can also visualise your topology by calling `clojurewerkz.eep.visualization/visualise-graph`
 and giving it an emitter. You'll get an image like this one:
 
-[![Topology Visualisation Example](https://www.evernote.com/shard/s9/sh/96e37ed1-59ea-4ac4-9bdd-cde6a48233e4/dadc6e1a874ac41777cac3e53a1cf79b/res/57b99ddc-b700-4cf9-9495-3d4c2935f02a/skitch.png)](https://www.evernote.com/shard/s9/sh/96e37ed1-59ea-4ac4-9bdd-cde6a48233e4/dadc6e1a874ac41777cac3e53a1cf79b/res/57b99ddc-b700-4cf9-9495-3d4c2935f02a/skitch.png)
+[![Topology Visualisation Example](http://coffeenco.de/assets/images/topology_example.png)](http://coffeenco.de/assets/images/topology_example.png)
 
 
 
