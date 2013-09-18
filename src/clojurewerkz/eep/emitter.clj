@@ -69,7 +69,8 @@ Pretty much topic routing.")
       (mr/register-consumer reactor ($ event-type) (mc/from-fn-raw
                                                     (fn [^Event e]
                                                       (run handler (.getData e)))))
-      (.select (.getConsumerRegistry reactor) event-type)))
+      (.select (.getConsumerRegistry reactor) event-type))
+    this)
 
   (delete-handler [this event-type]
     (when-let [old-handler (get-handler this event-type)]
@@ -377,13 +378,13 @@ Pretty much topic routing.")
 
 (defmacro build-topology
   "Builds aggregation topology from the given `hander-type` and handler builder."
-  ([emitter a b]
-     (concat (list (first b) emitter a) (rest b)))
+  ([emitter a [first & rest]]
+     `(let [emitter# ~emitter]
+        (~first emitter# ~a ~@rest)))
   ([emitter a b & more]
-     `(do
-        (build-topology ~emitter ~a ~b)
-        (build-topology ~emitter ~@more)
-        ~emitter)))
+     `(let [emitter# ~emitter]
+        (build-topology emitter# ~a ~b)
+        (build-topology emitter# ~@more))))
 
 ;;
 ;;

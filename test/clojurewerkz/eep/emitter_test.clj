@@ -173,6 +173,7 @@
                      :entrypoint (defsplitter (fn [i] (if (even? i) :even :odd)))
                      :even (defaggregator f 0)
                      :odd  (defaggregator f 0))
+
      (notify *emitter* :entrypoint 1)
      (notify *emitter* :entrypoint 2)
      (notify *emitter* :entrypoint 3)
