@@ -198,6 +198,15 @@ way:
                 :odd  (defaggregator f 0))
 ```
 
+Alternatively, you can use Clojure `->` for creating consise topologies:
+
+```clj
+(-> *emitter*
+    (defsplitter :entrypoint (fn [i] (if (even? i) :even :odd)))
+    (defaggregator :even f 0)
+    (defaggregator :odd f 0))
+```
+
 ## Topology visualisation
 
 You can also visualise your topology by calling `clojurewerkz.eep.visualization/visualise-graph`
