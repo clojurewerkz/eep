@@ -1,5 +1,17 @@
 ## Changes between 1.0.0-alpha4 and 1.0.0-alpha5
 
+### Fixed a problem with repeated evaluation of emitter in during topology building
+
+`build-topology` had a bug that caused emitter given in form of `(create)` to be
+re-evaluated each time topology part was created. Bug does not influence anyone who
+uses a single emitter instance bound to the existing var.
+
+### Fixed a problem with `add-handler` not returining an instance of emitter
+
+Usually it's emitter is bound to the variable, but if you use `->` macro to create
+topologies, old version of `add-handler` would not work since it returns an instance
+of Caching Registry. New version works just fine, tests were added to cover that issue.
+
 ### Added optional `downstreams` argument for properly visualising `Splitter`.
 
 Since Splitter only receives a function that's responsible for routing, it's impossible
