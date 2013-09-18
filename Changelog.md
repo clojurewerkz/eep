@@ -1,3 +1,7 @@
+## Changes between 1.0.0-alpha5 and 1.0.0-alpha6
+
+No changes yet
+
 ## Changes between 1.0.0-alpha4 and 1.0.0-alpha5
 
 ### Fixed a problem with repeated evaluation of emitter in during topology building
