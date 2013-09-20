@@ -4,11 +4,11 @@ No changes yet
 
 ## Changes between 1.0.0-alpha4 and 1.0.0-alpha5
 
-### Fixed a problem with repeated evaluation of emitter in during topology building
+### Fixed a problem with repeated emitter evaluation
 
-`build-topology` had a bug that caused emitter given in form of `(create)` to be
-re-evaluated each time topology part was created. Bug does not influence anyone who
-uses a single emitter instance bound to the existing var.
+`build-topology` had a bug that caused emitter given in the form of `(create)` to be
+re-evaluated each time the topology was updated. The bug does not affect codebases
+that use a single emitter instance bound to an existing var.
 
 ### Fixed a problem with `add-handler` not returining an instance of emitter
 
