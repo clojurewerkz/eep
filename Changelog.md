@@ -12,15 +12,17 @@ that use a single emitter instance bound to an existing var.
 
 ### Fixed a problem with `add-handler` not returining an instance of emitter
 
-Usually it's emitter is bound to the variable, but if you use `->` macro to create
-topologies, old version of `add-handler` would not work since it returns an instance
-of Caching Registry. New version works just fine, tests were added to cover that issue.
+Usually an emitter is stored in a var, but if you use a threading
+macro such as `->` to build topologies, `add-handler` failed because
+it returned a caching registry. Thew new version returns the emitter,
+allowing for threading macros to work.
 
-### Added optional `downstreams` argument for properly visualising `Splitter`.
+### Optional `downstreams` argument for properly visualising splitters.
 
-Since Splitter only receives a function that's responsible for routing, it's impossible
-for EEP to know where the events are routed after split. You can define a splitter
-with an array of all possible splits to make visualisation possible.
+Because splitters only receives a function that's responsible for the
+routing, it's impossible for EEP to know where the events are routed
+after split. You can define a splitter with an array of all possible
+splits to make data flow visualisation possible.
 
 For exmaple, following splitter will split events to even and odd ones. Along with
 splitter function, pass an vector of `[:even :odd]` so that visualiser would catch it.
