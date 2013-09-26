@@ -4,23 +4,25 @@ No changes yet
 
 ## Changes between 1.0.0-alpha4 and 1.0.0-alpha5
 
-### Fixed a problem with repeated evaluation of emitter in during topology building
+### Fixed a problem with repeated emitter evaluation
 
-`build-topology` had a bug that caused emitter given in form of `(create)` to be
-re-evaluated each time topology part was created. Bug does not influence anyone who
-uses a single emitter instance bound to the existing var.
+`build-topology` had a bug that caused emitter given in the form of `(create)` to be
+re-evaluated each time the topology was updated. The bug does not affect codebases
+that use a single emitter instance bound to an existing var.
 
 ### Fixed a problem with `add-handler` not returining an instance of emitter
 
-Usually it's emitter is bound to the variable, but if you use `->` macro to create
-topologies, old version of `add-handler` would not work since it returns an instance
-of Caching Registry. New version works just fine, tests were added to cover that issue.
+Usually an emitter is stored in a var, but if you use a threading
+macro such as `->` to build topologies, `add-handler` failed because
+it returned a caching registry. Thew new version returns the emitter,
+allowing for threading macros to work.
 
-### Added optional `downstreams` argument for properly visualising `Splitter`.
+### Optional `downstreams` argument for properly visualising splitters.
 
-Since Splitter only receives a function that's responsible for routing, it's impossible
-for EEP to know where the events are routed after split. You can define a splitter
-with an array of all possible splits to make visualisation possible.
+Because splitters only receives a function that's responsible for the
+routing, it's impossible for EEP to know where the events are routed
+after split. You can define a splitter with an array of all possible
+splits to make data flow visualisation possible.
 
 For exmaple, following splitter will split events to even and odd ones. Along with
 splitter function, pass an vector of `[:even :odd]` so that visualiser would catch it.
@@ -38,10 +40,9 @@ Meltown alpha3 is a release with minor API additions.
 ### Fixed problem with RingBuffer dispatcher overflow
 
 RingBuffer operates in it's own pool, adding notifications blocks RingBuffer's yielding,
-therefore makes notify function block eternally.
+therefore `notify` function block forever.
 
-In order to verify this and avoid having similar problems in future, corresponding
-throughput tests with realistic numbers were added.
+EEP now has realistic throughput tests that verify that the issue is gone.
 
 ### Added more options to emitter constructor
 

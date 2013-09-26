@@ -154,24 +154,6 @@ Pretty much topic routing.")
   (toString [_]
     (str "Handler: " f ", state: " @state_) ))
 
-(comment
-  (defn defcustom
-    [emitter t run-fn state-fn rebroadcast-types]
-    (let [h (reify
-              IHandler
-              (state [self]
-                (state-fn self))
-
-              (downstream [_]
-                rebroadcast-types)
-
-              (run [self payload]
-                (run-fn self payload))
-
-              (toString [_]
-                (str run-fn ", " state-fn ", " rebroadcast-types)))]
-      (add-handler emitter t h))))
-
 (deftype Observer [emitter f]
   IHandler
   (state [_]
