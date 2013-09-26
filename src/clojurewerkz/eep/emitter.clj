@@ -9,6 +9,7 @@
             [clojurewerkz.eep.clocks         :as cl]
             [com.ifesdjeen.utils.circular-buffer :as cb])
   (:import [java.util.concurrent ConcurrentHashMap Executors ExecutorService]
+           [reactor.function Consumer]
            [reactor.event Event]))
 
 (alter-var-root #'*out* (constantly *out*))
@@ -31,7 +32,6 @@
   (.submit notify-pool ^Callable f))
 
 (defprotocol IHandler
-  (run [_ args])
   (state [_])
   (downstream [_]))
 
@@ -66,9 +66,7 @@ Pretty much topic routing.")
 
     (when (nil? (get handler event-type))
       (add-handler-intern handlers event-type handler)
-      (mr/register-consumer reactor ($ event-type) (mc/from-fn-raw
-                                                    (fn [^Event e]
-                                                      (run handler (.getData e)))))
+      (mr/register-consumer reactor ($ event-type) handler)
       (.select (.getConsumerRegistry reactor) event-type))
     this)
 
@@ -127,69 +125,74 @@ Pretty much topic routing.")
 
 (deftype Aggregator [emitter f state_]
   IHandler
-  (run [_ payload]
-    (swap! state_ f payload))
-
   (state [_]
     @state_)
 
   (downstream [_] nil)
+
+  Consumer
+  (accept [_ payload]
+    (swap! state_ f (.getData payload)))
 
   Object
   (toString [_]
-    (pprint-to-str f @state_) ))
+    (pprint-to-str f @state_)))
 
 (deftype CommutativeAggregator [emitter f state_]
   IHandler
-  (run [_ payload]
-    (dosync
-     (commute state_ f payload)))
-
   (state [_]
     @state_)
 
   (downstream [_] nil)
+
+  Consumer
+  (accept [_ payload]
+    (dosync
+     (commute state_ f (.getData payload))))
 
   Object
   (toString [_]
     (str "Handler: " f ", state: " @state_) ))
 
-(defn defcustom
-  [emitter t run-fn state-fn rebroadcast-types]
-  (let [h (reify
-            IHandler
-            (run [self payload]
-              (run-fn self payload))
+(comment
+  (defn defcustom
+    [emitter t run-fn state-fn rebroadcast-types]
+    (let [h (reify
+              IHandler
+              (state [self]
+                (state-fn self))
 
-            (state [self]
-              (state-fn self))
+              (downstream [_]
+                rebroadcast-types)
 
-            (downstream [_]
-              rebroadcast-types)
+              (run [self payload]
+                (run-fn self payload))
 
-            (toString [_]
-              (str run-fn ", " state-fn ", " rebroadcast-types)))]
-    (add-handler emitter t h)))
+              (toString [_]
+                (str run-fn ", " state-fn ", " rebroadcast-types)))]
+      (add-handler emitter t h))))
 
 (deftype Observer [emitter f]
   IHandler
-  (run [_ payload]
-    (f payload))
-
   (state [_]
     nil)
 
-  (downstream [_] nil))
+  (downstream [_] nil)
+
+  Consumer
+  (accept [_ payload]
+    (f (.getData payload))))
 
 (deftype Rollup [emitter f redistribute-t]
   IHandler
-  (run [_ payload]
-    (f payload))
-
   (state [_]
     nil)
 
   (downstream [_] [redistribute-t])
+
+  Consumer
+  (accept [_ payload]
+    (f (.getData payload)))
 
   Object
   (toString [_]
@@ -197,14 +200,15 @@ Pretty much topic routing.")
 
 (deftype Filter [emitter filter-fn rebroadcast]
   IHandler
-  (run [_ payload]
-    (let [data payload]
-      (when (filter-fn data)
-        (notify-in-pool emitter rebroadcast data))))
-
   (state [_] nil)
 
   (downstream [_] [rebroadcast])
+
+  Consumer
+  (accept [_ payload]
+    (let [data (.getData payload)]
+      (when (filter-fn data)
+        (notify-in-pool emitter rebroadcast data))))
 
   Object
   (toString [_]
@@ -212,13 +216,15 @@ Pretty much topic routing.")
 
 (deftype Multicast [emitter rebroadcast-types]
   IHandler
-  (run [_ payload]
-    (doseq [t rebroadcast-types]
-      (notify-in-pool emitter t payload)))
-
   (state [_] nil)
 
   (downstream [_] rebroadcast-types)
+
+  Consumer
+  (accept [_ payload]
+    (let [data (.getData payload)]
+      (doseq [t rebroadcast-types]
+        (notify-in-pool emitter t data))))
 
   Object
   (toString [_]
@@ -226,13 +232,14 @@ Pretty much topic routing.")
 
 (deftype Splitter [emitter split-fn downstreams]
   IHandler
-  (run [_ payload]
-    (let [data payload]
-      (notify-in-pool emitter (split-fn data) data)))
-
   (state [_] nil)
 
   (downstream [_] downstreams)
+
+  Consumer
+  (accept [_ payload]
+    (let [data (.getData payload)]
+      (notify-in-pool emitter (split-fn data) data)))
 
   Object
   (toString [_]
@@ -240,12 +247,6 @@ Pretty much topic routing.")
 
 (deftype Transformer [emitter transform-fn rebroadcast]
   IHandler
-  (run [_ payload]
-    (if (sequential? rebroadcast)
-      (doseq [t rebroadcast]
-        (notify-in-pool emitter t (transform-fn payload)))
-      (notify-in-pool emitter rebroadcast (transform-fn payload))))
-
   (state [_] nil)
 
   (downstream [_]
@@ -253,18 +254,27 @@ Pretty much topic routing.")
       rebroadcast
       [rebroadcast]))
 
+  Consumer
+  (accept [_ payload]
+    (let [data (.getData payload)]
+      (if (sequential? rebroadcast)
+        (doseq [t rebroadcast]
+          (notify-in-pool emitter t (transform-fn data)))
+        (notify-in-pool emitter rebroadcast (transform-fn data)))))
+
   Object
   (toString [_]
     (clojure.string/join ", " [transform-fn rebroadcast])))
 
 (deftype Buffer [emitter buf]
   IHandler
-  (run [_ payload]
-    (swap! buf conj payload))
-
   (state [_] (cb/to-vec @buf))
 
-  (downstream [_] nil))
+  (downstream [_] nil)
+
+  Consumer
+  (accept [_ payload]
+    (swap! buf conj (.getData payload))))
 
 ;;
 ;; Builder fns
