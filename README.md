@@ -304,3 +304,7 @@ tests pass, submit a pull request on Github.
 Copyright © 2014 Michael Klishin, Alex P
 
 Distributed under the Eclipse Public License, the same as Clojure.
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/clojurewerkz/eep/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
