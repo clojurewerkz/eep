@@ -48,10 +48,10 @@ In order to create an emitter, use `clojurewerkz.eep.emitter/create` function:
 (def emitter (create :dispatcher-type :ring-buffer))
 ```
 
-You can register even handlers on an emitter by using handler helper
+You can register event handlers on an emitter by using handler helper
 functions. For example, in order to calculate sums for even and odd
 numbers, you can first define a `splitter` and then two `aggregators`,
-one for given and one for odd ones:
+one for even and one for odd ones:
 
 ```clj
 (defsplitter emitter :entrypoint (fn [i] (if (even? i) :even :odd)))
@@ -95,7 +95,7 @@ which takes an emitter, event type and payload:
 `handler` is a processing unit that may have state or be stateless. Each
 handler is attached to emitter with a `type`, which uniquely
 identifies it within an emitter. You can only attach a single handler
-for any given `type`. However, you can attach single Handler at to
+for any given `type`. However, you can attach a single Handler to
 multiple `types`.
 
 Examples of handlers are:
@@ -150,7 +150,7 @@ IRC, Jabber and append event to the log file.
 (defmulticast emitter :entrypoint [:summarizer1 :summarizer2 :summarizer3])
 
 ;; It's also possible to attach additional multicast entries. this will
-;; append :summarizer4 for to be re-disributed whenever events are
+;; append :summarizer4 for to be re-distributed whenever events are
 ;; coming to :entrypoint
 (defmulticast emitter :entrypoint [:summarizer4])
 ```
@@ -185,10 +185,10 @@ Handlers may be stateful and stateless. `filter`, `splitter`,
 `transformer`, `multicast` and `observer` are __stateless__. On the
 other hand, `aggregator`, `buffer` and `rollup` are stateful.
 
-## Toplogy DSL
+## Topology DSL
 
 There's a DSL that threads emitter through all handler declarations,
-in order to greate aggregation topologies in a more concise and obvious
+in order to create aggregation topologies in a more concise and obvious
 way:
 
 ```clj
@@ -198,7 +198,7 @@ way:
                 :odd  (defaggregator f 0))
 ```
 
-Alternatively, you can use Clojure `->` for creating consise topologies:
+Alternatively, you can use Clojure `->` for creating concise topologies:
 
 ```clj
 (-> *emitter*
@@ -207,18 +207,18 @@ Alternatively, you can use Clojure `->` for creating consise topologies:
     (defaggregator :odd f 0))
 ```
 
-## Topology visualisation
+## Topology visualization
 
-You can also visualise your topology by calling `clojurewerkz.eep.visualization/visualise-graph`
+You can also visualize your topology by calling `clojurewerkz.eep.visualization/visualise-graph`
 and giving it an emitter. You'll get an image like this one:
 
-[![Topology Visualisation Example](http://coffeenco.de/assets/images/topology_example.png)](http://coffeenco.de/assets/images/topology_example.png)
+[![Topology Visualization Example](http://coffeenco.de/assets/images/topology_example.png)](http://coffeenco.de/assets/images/topology_example.png)
 
 ## Windows
 
 Windows and buffers are an essential part of event processing.
 We've added the most important implementations of windowed
-oprations, such as sliding, tumbling, monotonic and timed windows
+operations, such as sliding, tumbling, monotonic and timed windows
 to EEP to allow you to use them within topologies.
 
 ### Sliding window
@@ -255,7 +255,7 @@ Example: Tumbling window of size 2 computing sum of values.
                                    +---+   +---+---+
 ```
 
-Useful to accumulate `size` elements and aggreagate on overflow.
+Useful to accumulate `size` elements and aggregate on overflow.
 
 ### Monotonic window
 
@@ -307,4 +307,3 @@ Distributed under the Eclipse Public License, the same as Clojure.
 
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/clojurewerkz/eep/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
-
