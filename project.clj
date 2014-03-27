@@ -8,7 +8,7 @@
                  [rhizome "0.1.9"]]
   :profiles {:1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.6 {:dependencies [[org.clojure/clojure "1.6.0"]]}
-             :master {:dependencies [[org.clojure/clojure "1.6.0-master-SNAPSHOT"]]}
+             :master {:dependencies [[org.clojure/clojure "1.7.0-master-SNAPSHOT"]]}
              :dev {:plugins [[codox "0.6.6"]]
                    :codox {:sources ["src/clojure"]
                            :output-dir "doc/api"}}}
