@@ -1,6 +1,10 @@
 ## Changes between 1.0.0-alpha5 and 1.0.0-alpha6
 
-No changes yet
+### Clojure 1.6
+
+EEP now depends on `org.clojure/clojure` version `1.6.0`. It is
+still compatible with Clojure 1.4 and if your `project.clj` depends on
+a different version, it will be used, but 1.6 is the default now.
 
 ## Changes between 1.0.0-alpha4 and 1.0.0-alpha5
 
