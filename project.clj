@@ -5,7 +5,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [com.ifesdjeen/utils "0.4.0"]
                  [clojurewerkz/meltdown "1.0.0"]
-                 [rhizome "0.1.9"]]
+                 [rhizome "0.2.0"]]
   :profiles {:1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.1"]]}
              :master {:dependencies [[org.clojure/clojure "1.7.0-master-SNAPSHOT"]]}
