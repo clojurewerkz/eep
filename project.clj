@@ -4,7 +4,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [com.ifesdjeen/utils "0.4.0"]
-                 [clojurewerkz/meltdown "1.0.0-alpha4"]
+                 [clojurewerkz/meltdown "1.0.0-beta9"]
                  [rhizome "0.1.9"]]
   :profiles {:1.4 {:dependencies [[org.clojure/clojure "1.4.0"]]}
              :1.5 {:dependencies [[org.clojure/clojure "1.5.1"]]}
