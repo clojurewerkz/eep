@@ -301,6 +301,6 @@ tests pass, submit a pull request on Github.
 
 ## License
 
-Copyright © 2014 Michael Klishin, Alex P
+Copyright © 2014 Michael Klishin, Alex Petrov, and the ClojureWerkz team.
 
 Distributed under the Eclipse Public License, the same as Clojure.
