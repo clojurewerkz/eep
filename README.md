@@ -286,7 +286,7 @@ not yielding control back to OS, so OS defines that as 100% processor load.
 
 ## Supported Clojure Versions
 
-EEP requires Clojure 1.4+.
+EEP requires Clojure 1.6+.
 
 
 ## Development
