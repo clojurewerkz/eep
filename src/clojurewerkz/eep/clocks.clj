@@ -1,5 +1,6 @@
 (ns ^{:doc "Generic implementation clocks to be used in windowed oprations"}
-  clojurewerkz.eep.clocks)
+  clojurewerkz.eep.clocks
+  (:refer-clojure :exclude [time]))
 
 (defprotocol Clock
   (time [this] "Returns current clock time.")
