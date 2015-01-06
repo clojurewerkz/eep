@@ -12,7 +12,7 @@
     (/ (reduce + non-nil) (count non-nil))))
 
 (defn variance
-  "Calculates variance, deviation from man value"
+  "Calculates variance, deviation from mean value"
   [arr]
   (let [mean (/ (reduce + arr) (count arr))
         sqr #(* % %)]
