@@ -8,8 +8,10 @@
 (defn mean
   "Calculates mean"
   [vals]
-  (let [non-nil (map identity vals)]
-    (/ (reduce + non-nil) (count non-nil))))
+  (let [non-nil (keep identity vals)
+        cnt (count non-nil)]
+    (when (pos? cnt)
+      (/ (reduce + non-nil) cnt))))
 
 (defn variance
   "Calculates variance, deviation from mean value"
