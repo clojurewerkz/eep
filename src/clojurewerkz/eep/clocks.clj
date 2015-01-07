@@ -1,5 +1,5 @@
-(ns ^{:doc "Generic implementation clocks to be used in windowed oprations"}
-  clojurewerkz.eep.clocks
+(ns clojurewerkz.eep.clocks
+  "Generic implementation clocks to be used in windowed oprations"
   (:refer-clojure :exclude [time]))
 
 (defprotocol Clock
