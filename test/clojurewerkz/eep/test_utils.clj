@@ -29,8 +29,8 @@
   "Awaits for latch for 500ms"
   [latch & body]
   `(do
-     (assert (.await (deref ~latch) 2000 TimeUnit/MILLISECONDS)
-             (str "Waited for latch, but it never came... Still "
+     (assert (.await (deref ~latch) 3 TimeUnit/SECONDS)
+             (str "Timed out waiting on a latch... Still "
                   (.getCount (deref ~latch)) " to go."))
      ~@body))
 
