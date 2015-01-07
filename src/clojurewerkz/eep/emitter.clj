@@ -12,8 +12,6 @@
            [reactor.function Consumer]
            [reactor.event Event]))
 
-(alter-var-root #'*out* (constantly *out*))
-
 (defn pprint-to-str
   [& objs]
   (let [w (java.io.StringWriter.)]
@@ -72,7 +70,9 @@ Pretty much topic routing.")
 
   (delete-handler [this event-type]
     (when-let [old-handler (get-handler this event-type)]
-      (.unregister (.getConsumerRegistry reactor) event-type)
+      (try
+        (.unregister (.getConsumerRegistry reactor) event-type)
+        (catch Exception e))
       (swap! handlers dissoc event-type)
       old-handler))
 
@@ -115,7 +115,8 @@ Pretty much topic routing.")
 
 (defn create
   "Creates a fresh Event Emitter with the default executor."
-  [&{:keys [dispatcher-type dispatcher env]}]
+  [{:keys [dispatcher-type dispatcher env]
+    :or   [env (me/create)]}]
   (let [reactor (mr/create :dispatcher-type dispatcher-type :dispatcher dispatcher :env env)]
     (Emitter. (atom {}) (ConcurrentHashMap.) reactor)))
 
@@ -347,6 +348,7 @@ Pretty much topic routing.")
      ~@body
      (catch Exception e#
        (println "Exception occured while processing " ~handler-type ": " (.getMessage e#))
+       (.printStackTrace e#)
        (register-exception ~emitter ~handler-type e#))))
 
 (defn wrap-carefully
@@ -383,7 +385,7 @@ Pretty much topic routing.")
 ;;
 
 (defn keep-last
-  "Aggregator helper function, always keeps only last value"
+  "Aggregator helper function, always keeps only the last value"
   [_ last]
   last)
 

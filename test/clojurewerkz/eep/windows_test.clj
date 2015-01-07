@@ -84,22 +84,3 @@
     (Thread/sleep timespan)
     (window 1)
     (is (= 2 @last-val))))
-
-(deftest simple-timed-window-test
-  (let [last-val (atom nil)
-        window (timed-window-simple (c/make-wall-clock timespan)
-                                    timespan
-                                    sum
-                                    #(reset! last-val %))]
-    (is (nil? @last-val))
-    (window 1)
-    (is (nil? @last-val))
-    (window 1)
-    (window 1)
-    (window 1)
-    (Thread/sleep (* 2 timespan))
-    (is (= 4 @last-val))
-    (window 1)
-    (window 1)
-    (Thread/sleep (* 2 timespan))
-    (is (= 2 @last-val))))
