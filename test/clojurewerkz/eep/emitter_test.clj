@@ -7,221 +7,213 @@
             [clojure.test :refer :all]
             [clojurewerkz.eep.test-utils :refer :all]))
 
-(def ^:dynamic *emitter*)
+;; Dispatcher types: #{:event-loop :thread-pool :ring-buffer}
 
-(defmacro test-combinations [& body]
-  "Run given queries in both plain and prepared modes."
-  `(doseq [~'dispatcher-type #{:event-loop :thread-pool :ring-buffer}]
-     (binding [*emitter* (create :dispatcher-type ~'dispatcher-type)]
-       ~@body)))
-
-(deftest aggregator-test
-  (test-combinations
-   (let [latch   (make-latch 3)]
-     (defaggregator *emitter* :count (wrap-countdown latch +) 100)
+(deftest test-aggregator
+  (let [em      (create :dispatcher-type :ring-buffer)
+        latch   (make-latch 3)]
+     (defaggregator em :count (wrap-countdown latch +) 100)
 
      (dotimes [i 3]
-       (notify *emitter* :count 1))
+       (notify em :count 1))
 
      (after-latch latch
-                  (is (= 103 (state (get-handler *emitter* :count)))))
-     (stop *emitter*))))
+                  (is (= 103 (state (get-handler em :count)))))
+     (stop em)))
 
-(deftest caggregator-test
-  (test-combinations
-   (let [latch   (make-latch 3)]
-     (defcaggregator *emitter* :count (wrap-countdown latch +) 100)
+(deftest test-caggregator
+  (let [em    (create :dispatcher-type :ring-buffer)
+        latch (make-latch 3)]
+     (defcaggregator em :count (wrap-countdown latch +) 100)
 
      (dotimes [i 3]
-       (notify *emitter* :count 1))
+       (notify em :count 1))
 
      (Thread/sleep 10)
      (after-latch latch
-                  (is (= 103 (state (get-handler *emitter* :count)))))
-     (stop *emitter*))))
+                  (is (= 103 (state (get-handler em :count)))))
+     (stop em)))
 
-(deftest t-defobserver
-  (test-combinations
-   (let [latch   (make-latch 1)]
-     (defaggregator *emitter* :count (wrap-countdown latch +) 100)
-     (is (= 100 (state (get-handler *emitter* :count))))
+(deftest test-defobserver
+  (let [em      (create :dispatcher-type :ring-buffer)
+        latch   (make-latch 1)]
+     (defaggregator em :count (wrap-countdown latch +) 100)
+     (is (= 100 (state (get-handler em :count))))
 
-     (notify *emitter* :count 1)
+     (notify em :count 1)
 
      (after-latch latch
-                  (is (= 101 (state (get-handler *emitter* :count)))))
-     (stop *emitter*)))
+                  (is (= 101 (state (get-handler em :count)))))
+     (stop em))
 
-  (test-combinations
-   (let [latch   (make-latch 5)]
-     (defobserver *emitter* :countdown (fn [_]
+  (let [em      (create :dispatcher-type :ring-buffer)
+        latch   (make-latch 5)]
+     (defobserver em :countdown (fn [_]
                                          (.countDown @latch)))
      (dotimes [i 5]
-       (notify *emitter* :countdown 1))
+       (notify em :countdown 1))
 
      (is (.await @latch 500 java.util.concurrent.TimeUnit/MILLISECONDS))
-     (stop *emitter*))))
+     (stop em)))
 
-;; Add with-*emitter* macro that'd thread *emitter* through add-handler
-
-(deftest filter-pipe-test
-  (test-combinations
-   (let [latch   (make-latch 2)]
-     (deffilter *emitter* :entrypoint even? :summarizer)
-     (defaggregator *emitter* :summarizer (wrap-countdown latch +) 0)
-     (notify *emitter* :entrypoint 1)
-     (notify *emitter* :entrypoint 2)
-     (notify *emitter* :entrypoint 3)
-     (notify *emitter* :entrypoint 4)
-     (notify *emitter* :entrypoint 5)
+(deftest test-filter-pipe
+  (let [em    (create :dispatcher-type :ring-buffer)
+        latch (make-latch 2)]
+     (deffilter em :entrypoint even? :summarizer)
+     (defaggregator em :summarizer (wrap-countdown latch +) 0)
+     (notify em :entrypoint 1)
+     (notify em :entrypoint 2)
+     (notify em :entrypoint 3)
+     (notify em :entrypoint 4)
+     (notify em :entrypoint 5)
      (after-latch latch
-                  (is (= 6 (state (get-handler *emitter* :summarizer)))))
-     (stop *emitter*))))
+                  (is (= 6 (state (get-handler em :summarizer)))))
+     (stop em)))
 
-(deftest multicast-test
+(deftest test-multicast
   (testing "Basic multicast abilities"
-    (test-combinations
-     (let [latch     (make-latch 9)
-           f         (wrap-countdown latch +)]
-       (defmulticast *emitter* :entrypoint [:summarizer1 :summarizer2 :summarizer3])
-       (defaggregator *emitter* :summarizer1 f 0)
-       (defaggregator *emitter* :summarizer2 f 0)
-       (defaggregator *emitter* :summarizer3 f 0)
-       (notify *emitter* :entrypoint 1)
-       (notify *emitter* :entrypoint 2)
-       (notify *emitter* :entrypoint 3)
+    (let [em     (create :dispatcher-type :ring-buffer)
+           latch (make-latch 9)
+           f     (wrap-countdown latch +)]
+       (defmulticast em :entrypoint [:summarizer1 :summarizer2 :summarizer3])
+       (defaggregator em :summarizer1 f 0)
+       (defaggregator em :summarizer2 f 0)
+       (defaggregator em :summarizer3 f 0)
+       (notify em :entrypoint 1)
+       (notify em :entrypoint 2)
+       (notify em :entrypoint 3)
 
        (Thread/sleep 10)
        (after-latch latch
-                    (is (= 6 (state (get-handler *emitter* :summarizer1))))
-                    (is (= 6 (state (get-handler *emitter* :summarizer2))))
-                    (is (= 6 (state (get-handler *emitter* :summarizer3)))))
-       (stop *emitter*))))
+                    (is (= 6 (state (get-handler em :summarizer1))))
+                    (is (= 6 (state (get-handler em :summarizer2))))
+                    (is (= 6 (state (get-handler em :summarizer3)))))
+       (stop em)))
 
   (testing "Re-adding multicast"
-    (test-combinations
-     (let [latch   (make-latch 3)
-           f       (wrap-countdown latch +)]
-       (defmulticast *emitter* :entrypoint [:summarizer1])
-       (defmulticast *emitter* :entrypoint [:summarizer2])
-       (defmulticast *emitter* :entrypoint [:summarizer3])
-       (defaggregator *emitter* :summarizer1 f 0)
-       (defaggregator *emitter* :summarizer2 f 0)
-       (defaggregator *emitter* :summarizer3 f 0)
+    (let [em    (create :dispatcher-type :ring-buffer)
+          latch (make-latch 3)
+          f     (wrap-countdown latch +)]
+       (defmulticast em :entrypoint [:summarizer1])
+       (defmulticast em :entrypoint [:summarizer2])
+       (defmulticast em :entrypoint [:summarizer3])
+       (defaggregator em :summarizer1 f 0)
+       (defaggregator em :summarizer2 f 0)
+       (defaggregator em :summarizer3 f 0)
 
-       (notify *emitter* :entrypoint 1)
-       (notify *emitter* :entrypoint 2)
-       (notify *emitter* :entrypoint 3)
+       (notify em :entrypoint 1)
+       (notify em :entrypoint 2)
+       (notify em :entrypoint 3)
 
        (Thread/sleep 10)
        (after-latch latch
-                    (is (= 6 (state (get-handler *emitter* :summarizer1))))
-                    (is (= 6 (state (get-handler *emitter* :summarizer2))))
-                    (is (= 6 (state (get-handler *emitter* :summarizer3)))))
-       (stop *emitter*)))))
+                    (is (= 6 (state (get-handler em :summarizer1))))
+                    (is (= 6 (state (get-handler em :summarizer2))))
+                    (is (= 6 (state (get-handler em :summarizer3)))))
+       (stop em))))
 
-(deftest transform-test
-  (test-combinations
-   (let [latch   (make-latch 5)]
-     (deftransformer *emitter* :entrypoint (partial * 2) :summarizer)
-     (defaggregator *emitter* :summarizer (wrap-countdown latch +) 0)
-     (notify *emitter* :entrypoint 1)
-     (notify *emitter* :entrypoint 2)
-     (notify *emitter* :entrypoint 3)
-     (notify *emitter* :entrypoint 4)
-     (notify *emitter* :entrypoint 5)
+(deftest test-transform
+  (let [em    (create :dispatcher-type :ring-buffer)
+        latch (make-latch 5)]
+     (deftransformer em :entrypoint (partial * 2) :summarizer)
+     (defaggregator em :summarizer (wrap-countdown latch +) 0)
+     (notify em :entrypoint 1)
+     (notify em :entrypoint 2)
+     (notify em :entrypoint 3)
+     (notify em :entrypoint 4)
+     (notify em :entrypoint 5)
 
      (Thread/sleep 10)
      (after-latch latch
-                  (is (= 30 (state (get-handler *emitter* :summarizer)))))
-     (stop *emitter*))))
+                  (is (= 30 (state (get-handler em :summarizer)))))
+     (stop em)))
 
 (deftest test-splitter
-  (test-combinations
-   (let [latch   (make-latch 5)
-         f       (wrap-countdown latch +)]
-     (defsplitter *emitter* :entrypoint (fn [i] (if (even? i) :even :odd)))
-     (defaggregator *emitter* :even f 0)
-     (defaggregator *emitter* :odd f 0)
-     (notify *emitter* :entrypoint 1)
-     (notify *emitter* :entrypoint 2)
-     (notify *emitter* :entrypoint 3)
-     (notify *emitter* :entrypoint 4)
-     (notify *emitter* :entrypoint 5)
+  (let [em    (create :dispatcher-type :ring-buffer)
+        latch (make-latch 5)
+        f     (wrap-countdown latch +)]
+     (defsplitter em :entrypoint (fn [i] (if (even? i) :even :odd)))
+     (defaggregator em :even f 0)
+     (defaggregator em :odd f 0)
+     (notify em :entrypoint 1)
+     (notify em :entrypoint 2)
+     (notify em :entrypoint 3)
+     (notify em :entrypoint 4)
+     (notify em :entrypoint 5)
 
      (Thread/sleep 10)
      (after-latch latch
-                  (is (= 6 (state (get-handler *emitter* :even))))
-                  (is (= 9 (state (get-handler *emitter* :odd)))))
-     (stop *emitter*))))
+                  (is (= 6 (state (get-handler em :even))))
+                  (is (= 9 (state (get-handler em :odd)))))
+     (stop em)))
 
 
 (deftest test-carefully
-  (test-combinations
-   (defaggregator *emitter* :entrypoint (wrap-carefully *emitter* :entrypoint +) 0)
-   (notify *emitter* :entrypoint "a")
-   (Thread/sleep 100)
-   (is (not (nil? (:entrypoint (.errors *emitter*)))))
-   (stop *emitter*)))
+  (let [em (create :dispatcher-type :ring-buffer)]
+    (defaggregator em :entrypoint (wrap-carefully em :entrypoint +) 0)
+    (notify em :entrypoint "a")
+    (Thread/sleep 100)
+    (is (not (nil? (:entrypoint (.errors em)))))
+    (stop em)))
 
 (deftest test-threading-dsl
-  (test-combinations
-   (let [latch     (make-latch 5)
-         f         (wrap-countdown latch +)]
+  (let [em        (create :dispatcher-type :ring-buffer)
+        latch     (make-latch 5)
+        f         (wrap-countdown latch +)]
 
-     (-> *emitter*
+     (-> em
          (defsplitter :entrypoint (fn [i] (if (even? i) :even :odd)))
          (defaggregator :even f 0)
          (defaggregator :odd f 0))
 
-     (notify *emitter* :entrypoint 1)
-     (notify *emitter* :entrypoint 2)
-     (notify *emitter* :entrypoint 3)
-     (notify *emitter* :entrypoint 4)
-     (notify *emitter* :entrypoint 5)
+     (notify em :entrypoint 1)
+     (notify em :entrypoint 2)
+     (notify em :entrypoint 3)
+     (notify em :entrypoint 4)
+     (notify em :entrypoint 5)
 
      (after-latch latch
-                  (is (= 6 (state (get-handler *emitter* :even))))
-                  (is (= 9 (state (get-handler *emitter* :odd)))))
-     (stop *emitter*))))
+                  (is (= 6 (state (get-handler em :even))))
+                  (is (= 9 (state (get-handler em :odd)))))
+     (stop em)))
 
 (deftest test-splitter-dsl
-  (test-combinations
-   (let [latch     (make-latch 5)
-         f         (wrap-countdown latch +)]
+  (let [em        (create :dispatcher-type :ring-buffer)
+        latch     (make-latch 5)
+        f         (wrap-countdown latch +)]
 
-     (build-topology *emitter*
+     (build-topology em
                      :entrypoint (defsplitter (fn [i] (if (even? i) :even :odd)))
                      :even (defaggregator f 0)
                      :odd  (defaggregator f 0))
 
-     (notify *emitter* :entrypoint 1)
-     (notify *emitter* :entrypoint 2)
-     (notify *emitter* :entrypoint 3)
-     (notify *emitter* :entrypoint 4)
-     (notify *emitter* :entrypoint 5)
+     (notify em :entrypoint 1)
+     (notify em :entrypoint 2)
+     (notify em :entrypoint 3)
+     (notify em :entrypoint 4)
+     (notify em :entrypoint 5)
 
      (after-latch latch
-                  (is (= 6 (state (get-handler *emitter* :even))))
-                  (is (= 9 (state (get-handler *emitter* :odd)))))
-     (stop *emitter*))))
+                  (is (= 6 (state (get-handler em :even))))
+                  (is (= 9 (state (get-handler em :odd)))))
+     (stop em)))
 
 (deftest test-rollup
-  (test-combinations
-   (defrollup *emitter* :entrypoint 100 :buffer)
-   (defaggregator *emitter* :buffer keep-last nil)
-   (notify *emitter* :entrypoint 1)
-   (notify *emitter* :entrypoint 2)
-   (notify *emitter* :entrypoint 3)
-   (is (nil? (state (get-handler *emitter* :buffer))))
+  (let [em (create :dispatcher-type :ring-buffer)]
+   (defrollup     em :entrypoint 100 :buffer)
+   (defaggregator em :buffer keep-last nil)
+   (notify em :entrypoint 1)
+   (notify em :entrypoint 2)
+   (notify em :entrypoint 3)
+   (is (nil? (state (get-handler em :buffer))))
    (Thread/sleep 110)
-   (is (= [1 2 3] (state (get-handler *emitter* :buffer))))))
+   (is (= [1 2 3] (state (get-handler em :buffer))))))
 
-(deftest group-aggregate-test
+(deftest test-group-aggregate
   (is (= {:a 4 :b 6} (group-aggregate stats/sum [[:a 1] [:b 2] [:a 3] [:b 4]]))))
 
-(deftest *emitter*-stop-alive-test
-  (test-combinations
-   (is (alive? *emitter*))
-   (stop *emitter*)
-   (is (not (alive? *emitter*)))))
+(deftest test-alive
+  (let [em (create :dispatcher-type :ring-buffer)]
+    (is (alive? em))
+    (stop em)
+    (is (not (alive? em)))))
