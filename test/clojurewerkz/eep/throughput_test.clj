@@ -1,7 +1,7 @@
 (ns clojurewerkz.eep.throughput-test
-  (:use clojure.test
-        clojurewerkz.eep.emitter
-        clojurewerkz.eep.test-utils)
+  (:require [clojure.test :refer :all]
+            [clojurewerkz.eep.emitter :refer :all]
+            [clojurewerkz.eep.test-utils :refer :all])
   (:import [reactor.event.dispatch RingBufferDispatcher]
            [com.lmax.disruptor.dsl ProducerType]
            [com.lmax.disruptor YieldingWaitStrategy]))
