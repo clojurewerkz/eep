@@ -1,4 +1,27 @@
-## Changes between 1.0.0-alpha5 and 1.0.0-alpha6
+## Changes between 1.0.0-alpha5 and 1.0.0-beta1
+
+`beta1` has **breaking public API changes**.
+
+### Emitter Creation API Change
+
+`clojurewerkz.eep.emitter/create` no longer uses pseudo-kwargs. So, instead of
+
+``` clojure
+(require '[clojurewerkz.eep.emitter :as eem])
+
+(let [me (eem/create :dispatcher-type rtype :env env)]
+  )
+```
+
+use the function like so
+
+``` clojure
+(require '[clojurewerkz.eep.emitter :as eem])
+
+(let [me (eem/create {:dispatcher-type rtype :env env})]
+  )
+```
+
 
 ### Clojure 1.6
 
