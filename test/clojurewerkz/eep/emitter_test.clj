@@ -1,11 +1,11 @@
 (ns clojurewerkz.eep.emitter-test
-  (:use clojure.test
-        clojurewerkz.eep.emitter
-        clojurewerkz.eep.test-utils)
   (:require [clojurewerkz.meltdown.reactor :as reactor]
+            [clojurewerkz.eep.emitter :refer :all]
             [clojurewerkz.eep.stats :as stats]
             [clojurewerkz.eep.windows :as windows]
-            [clojurewerkz.eep.clocks :as clocks]))
+            [clojurewerkz.eep.clocks :as clocks]
+            [clojure.test :refer :all]
+            [clojurewerkz.eep.test-utils :refer :all]))
 
 (def ^:dynamic *emitter*)
 
