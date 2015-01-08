@@ -13,9 +13,10 @@ eep-clj is heavily influenced by other EEP projects:
 
 ## Project Maturity
 
-EEP is a *very young* and *experimental* project, but it's been used in
-production for some time and is fairly stable bug-wise. The API may change
-significantly in the upcoming months, so use it at your own discretion.
+EEP is a *young* and evolving project. The API may change
+significantly in the near future, so use it at your own discretion.
+
+This section will be update as the project matures.
 
 
 ## Maven Artifacts
@@ -24,14 +25,14 @@ significantly in the upcoming months, so use it at your own discretion.
 
 With Leiningen:
 
-    [clojurewerkz/eep "1.0.0-alpha5"]
+    [clojurewerkz/eep "1.0.0-beta1"]
 
 With Maven:
 
     <dependency>
       <groupId>clojurewerkz</groupId>
       <artifactId>eep</artifactId>
-      <version>1.0.0-alpha5</version>
+      <version>1.0.0-beta1</version>
     </dependency>
 
 
