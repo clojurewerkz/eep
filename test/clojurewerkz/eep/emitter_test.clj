@@ -14,6 +14,9 @@
         env   (me/create)]
     (create {:dispatcher-type rtype :env env})))
 
+(deftest test-no-argument-form
+  (create))
+
 (deftest test-aggregator
   (let [em      (new-emitter)
         latch   (make-latch 3)]
