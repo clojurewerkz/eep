@@ -304,4 +304,5 @@ tests pass, submit a pull request on Github.
 
 Copyright © 2014-2015 Michael Klishin, Alex Petrov, and the ClojureWerkz team.
 
-Distributed under the Eclipse Public License, the same as Clojure.
+Double licensed under the [Eclipse Public License](http://www.eclipse.org/legal/epl-v10.html) (the same as Clojure) or
+the [Apache Public License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
