@@ -43,10 +43,10 @@ With Maven:
 In order to create an emitter, use `clojurewerkz.eep.emitter/create` function:
 
 ```clj
-(ns my-eep-ns
-  (:require clojurewerkz.eep.emitter :refer :all))
+(ns user
+  (:require [clojurewerkz.eep.emitter :as eem]))
 
-(def emitter (create :dispatcher-type :ring-buffer))
+(def emitter (eem/create {}))
 ```
 
 You can register event handlers on an emitter by using handler helper
@@ -55,10 +55,10 @@ numbers, you can first define a `splitter` and then two `aggregators`,
 one for even and one for odd ones:
 
 ```clj
-(defsplitter emitter :entrypoint (fn [i] (if (even? i) :even :odd)))
+(eem/defsplitter emitter :entrypoint (fn [i] (if (even? i) :even :odd)))
 
-(defaggregator emitter :even f 0)
-(defaggregator emitter :odd f 0)
+(eem/defaggregator emitter :even (fn [acc i] (+ acc i)) 0)
+(eem/defaggregator emitter :odd (fn [acc i] (+ acc i)) 0)
 ```
 
 Here, `:entrypoint`, `:even` and `:odd` are event types, unique event
@@ -68,9 +68,17 @@ In order to push data to emitter, use `clojurewerkz.eep.emitter/notify`,
 which takes an emitter, event type and payload:
 
 ```clj
-(notify emitter :entrypoint 1)
-(notify emitter :entrypoint 2)
-(notify emitter :entrypoint 3)
+(eem/notify emitter :entrypoint 1)
+(eem/notify emitter :entrypoint 1)
+(eem/notify emitter :entrypoint 1)
+(eem/notify emitter :entrypoint 4)
+```
+
+You can then view the state of an aggregator like so:
+
+```clj
+(eem/state (eem/get-handler emitter :odd)) ;; 3
+(eem/state (eem/get-handler emitter :even)) ;; 4
 ```
 
 ## Core Concepts
@@ -86,20 +94,75 @@ which takes an emitter, event type and payload:
     be a number, a symbol, a keyword, a string or anything else. All the events
     coming into `Emitter` have a type.
 
-  * `Handler` is a function and optional state attached to it. The function acts as a
-    callback, executed whenever an event is matched on the type.
+  * `Handler` is a function and optional state attached to it. The function
+    acts as a callback, executed whenever an event is matched on the type.
     The same handler can be used for multiple event types, but
     an event type can only have one handler at most.
 
 ## Handler types
 
-`handler` is a processing unit that may have state or be stateless. Each
-handler is attached to emitter with a `type`, which uniquely
+Each handler is attached to emitter with a `type`, which uniquely
 identifies it within an emitter. You can only attach a single handler
 for any given `type`. However, you can attach a single Handler to
 multiple `types`.
 
-Examples of handlers are:
+Handlers may be stateful and stateless. `filter`, `splitter`,
+`transformer`, `multicast` and `observer` are __stateless__. On the
+other hand, `aggregator`, `buffer` and `rollup` are __stateful__.
+
+### Stateful Handlers
+
+`aggregator` is initialized with initial value, then gets events of
+a certain type and aggregates state by applying aggregate function to
+current state and an incoming event. It's similar to `reduce`
+function in Clojure, except for it's applied to the stream of data.
+
+```clj
+(def emitter (eem/create {})) ;; create the emitter
+(eem/defaggregator
+  emitter ;; the emitter
+  :accumulator ;; the event type to attach to
+  (fn [acc i] (+ acc i)) ;; the function to apply to the stream
+  0) ;; the initial state
+;; send 0-9 down the stream
+(doseq [i (range 10)]
+  (eem/notify emitter :accumulator i))
+
+;; state is 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9
+(eem/state (eem/get-handler emitter :accumulator)) ;; 45
+```
+
+`buffer` receives events of a certain type and stores them in a
+circular buffer with given capacity. As soon as capacity is
+reached, it drops events (first in, first out).
+
+```clj
+(def emitter (eem/create {}))
+(eem/defbuffer
+  emitter ;; the emitter
+  :entry ;; the event type to attach to
+  5) ; the maximum values.
+;; send 0-9 down the stream
+(doseq [i (range 10)]
+  (eem/notify emitter :entry i))
+
+;; 0 1 2 3 4 were dropped, in that order.
+(eem/state (eem/get-handler emitter :entry)) ; [5 6 7 8 9]
+```
+
+`rollup` acts in a manner similar to buffer, except for it's
+time-bound but not capacity-bound, so whenever a time period is
+reached, it dispatches all the events to several other handlers.
+
+```clj
+;; Aggregates events for 100 milliseconds and emits them to :summarizer
+;; as soon as timespan elapsed
+(eem/defrollup emitter :rollup-entry 100 :summarizer)
+```
+
+### Stateless Handlers
+
+Note: calling `state` on a stateless handler will return `nil`.
 
 `filter` receives events of a certain type, and forwards ones for which
 `filter-fn` returns `true` to one or more other handlers:
@@ -107,7 +170,20 @@ Examples of handlers are:
 ```clj
 ;; Filters events going through the stream, allowing only even ones
 ;; to go through
-(deffilter emitter :entrypoint even? :summarizer)
+(def emitter (eem/create {}))
+(eem/deffilter
+  emitter ;; the emitter
+  :filtered ;; the event type to attach to
+  number? ;; function to evaluate input
+  :only-numbers) ;; event-type to forward input that evaluates to true
+;; buffer to receive filtered input for example
+(eem/defbuffer emitter :only-numbers 5)
+;; send some test data down the stream
+(doseq [i [1 "a" 5 "b" 9 "c" "d" 32 "eep" 58]]
+  (eem/notify emitter :filtered i))
+
+;; all items where (number? item) was false were not forwarded
+(eem/state (eem/get-handler emitter :only-numbers)) ;; [1 5 9 32 58]
 ```
 
 `splitter` receives events of a certain type, and dispatches them to
@@ -118,7 +194,22 @@ differently.
 ```clj
 ;; Splits event stream to two parts, routing even events with :even
 ;; type and odd ones with :odd.
-(defsplitter emitter :entrypoint (fn [i] (if (even? i) :even :odd)))
+(def emitter (eem/create {}))
+(eem/defsplitter
+  emitter ;; the emitter
+  :entry ;; the event type to attach to
+  (fn [i] (if (number? i) :numbers :non-numbers))) ;; function evaluates input and returns which event type to forward to.
+;; aggregator to receive the numbers for example
+(eem/defaggregator emitter :numbers + 0)
+;; buffer to receive the numbers for example
+(eem/defbuffer emitter :non-numbers 5)
+;; send some test data down the stream
+(doseq [i [1 "a" 5 "b" 9 "c" "d" 32 "eep" 58]]
+  (eem/notify emitter :entry i))
+
+;; all numbers are sent to :numbers, all strings are sent to :not-numbers
+(eem/state (eem/get-handler emitter :numbers)) ;; 105, which is 1 + 5 + 9 +32 + 58
+(eem/state (eem/get-handler emitter :non-numbers)) ;; ["a" "b" "c" "d" "eep"], which is all the non-numbers
 ```
 
 `transformer` defines a transformer that gets typed tuples, applies
@@ -128,18 +219,32 @@ elements of a list, except for function is applied to stream of data.
 
 ```clj
 ;; Transforms event stream by multiplying each event to 2
-(deftransformer emitter :entrypoint (partial * 2) :summarizer)
+(def emitter (eem/create {}))
+
+;; Define the transformer function
+(defn fizzbuzzer [i]
+  (cond
+    (zero? (mod i 15)) "FizzBuzz"
+    (zero? (mod i 5)) "Buzz"
+    (zero? (mod i 3)) "Fizz"
+    :else i))
+
+(eem/deftransformer
+  emitter ;; the emitter
+  :entry ;; the event type to attach to
+  fizzbuzzer ;; the transformer function
+  :fizzbuzz) ;; the new event type to forward to
+;; a buffer to receive output for example
+(eem/defbuffer emitter :fizzbuzz 5)
+
+;; send some test data down the stream
+(doseq [i (range 10)]
+    (eem/notify emitter :entry i))
+
+;; Anything divided by 3 is "Fizz", anything divided by 5 is "Buzz", and anything divided by 15 is "FizzBuzz"
+(eem/state (eem/get-handler emitter :fizzbuzz)) ;; ["Buzz" "Fizz" 7 8 "Fizz"]
 ```
 
-`aggregator` is initialized with initial value, then gets events of
-a certain type and aggregates state by applying aggregate function to
-current state and an incoming event. It's similar to `reduce`
-function in Clojure, except for it's applied to the stream of data.
-
-```clj
-;; Accumulates sum of numbers in the stream
-(defaggregator emitter :even (fn [acc i] (+ acc i) 0))
-```
 
 `multicast` receives events of a certain type and broadcasts them
 to several handlers with different types. For example, whenever an
@@ -147,44 +252,53 @@ alert is received, you may want to send notifications via email,
 IRC, Jabber and append event to the log file.
 
 ```clj
-;; Redistributes incoming events, routing them by three given types
-(defmulticast emitter :entrypoint [:summarizer1 :summarizer2 :summarizer3])
+;; Redistributes incoming events, routing them to multiple other event types
+(def emitter (eem/create {}))
+(eem/defmulticast
+  emitter ;; the emitter
+  :entry ;; the event type to attach to
+  [:accumulator :incrementer :multiplier]) ;; vector of event types to forward to
 
-;; It's also possible to attach additional multicast entries. this will
-;; append :summarizer4 for to be re-distributed whenever events are
-;; coming to :entrypoint
-(defmulticast emitter :entrypoint [:summarizer4])
+;; set up aggregators for example
+(eem/defaggregator emitter :accumulator (fn [acc i] (+ acc i)) 0)
+(eem/defaggregator emitter :incrementer (fn [acc i] (+ acc 1)) 0)
+(eem/defaggregator emitter :multiplier (fn [acc i] (* acc i)) 1)
+
+;; send test data down the stream
+(doseq [i [2 3 4]]
+  (eem/notify emitter :entry i))
+
+(eem/state (eem/get-handler emitter :accumulator)) ;; 9, 2 + 3 + 4
+(eem/state (eem/get-handler emitter :incrementer)) ;; 3, 1 + 1 + 1
+(eem/state (eem/get-handler emitter :multiplier)) ;; 24, 2 * 3 * 4
+
+;; It's also possible to attach additional multicast entries. This will
+;; append :subtractor to the list of streams broadcasted by :entry from that point forward
+(eem/defmulticast emitter :entry [:subtractor])
+(eem/defaggregator emitter :subtractor (fn [acc i] (- acc i)) 0)
+(eem/notify emitter :entry 2)
+
+(eem/state (eem/get-handler emitter :accumulator)) ;; 11, 2 + 3 + 4 + 2
+(eem/state (eem/get-handler emitter :incrementer)) ;; 4, 1 + 1 + 1 + 1
+(eem/state (eem/get-handler emitter :multiplier)) ;; 48, 2 * 3 * 4 * 2
+(eem/state (eem/get-handler emitter :subtractor)) ;; -2
 ```
 
 `observer` receives events of a certain type and runs function
 (potentially with side-effects) on each one of them.
 
 ```clj
-(defobserver emitter :countdown (fn [_] (.countDown latch)))
+(def emitter (eem/create {}))
+
+;; our function with side effects
+(defn announcer [item]
+  (println (str "I would like to announce: " item)))
+
+(eem/defobserver emitter :announce announcer)
+
+(eem/notify emitter :announce "This Item")
+;; prints "I would like to announce: This Item"
 ```
-
-`buffer` receives events of a certain type and stores them in a
-circular buffer with given capacity. As soon as capacity is
-reached, it distributes them to several other handlers.
-
-```clj
-;; Holds most recent 20 values
-(defbuffer emitter :load-times-last-20-events 20)
-```
-
-`rollup` acts in a manner similar to buffer, except for it's
-time-bound but not capacity-bound, so whenever a time period is
-reached, it dispatches all the events to several other handlers.
-
-```clj
-;; Aggregates events for 100 milliseconds and emits them to :summarizer
-;; as soon as timespan elapsed
-(defrollup emitter :entrypoint 100 :summarizer)
-```
-
-Handlers may be stateful and stateless. `filter`, `splitter`,
-`transformer`, `multicast` and `observer` are __stateless__. On the
-other hand, `aggregator`, `buffer` and `rollup` are stateful.
 
 ## Topology DSL
 
@@ -193,19 +307,33 @@ in order to create aggregation topologies in a more concise and obvious
 way:
 
 ```clj
-(build-topology (create)
-                :entrypoint (defsplitter (fn [i] (if (even? i) :even :odd)) [:even :odd])
-                :even (defaggregator f 0)
-                :odd  (defaggregator f 0))
+(def emitter
+  (eem/build-topology (eem/create {})
+                      :entry (eem/defsplitter (fn [i] (if (even? i) :even :odd)))
+                      :even (eem/defbuffer 5)
+                      :odd  (eem/defbuffer 5)))
+
+(doseq [i (range 10)]
+  (eem/notify emitter :entry i))
+
+(eem/state (eem/get-handler emitter :even)) ;; [0 2 4 6 8]
+(eem/state (eem/get-handler emitter :odd)) ;; [1 3 5 7 9]
 ```
 
 Alternatively, you can use Clojure `->` for creating concise topologies:
 
 ```clj
-(-> *emitter*
-    (defsplitter :entrypoint (fn [i] (if (even? i) :even :odd)))
-    (defaggregator :even f 0)
-    (defaggregator :odd f 0))
+(def emitter
+  (-> (eem/create {})
+      (eem/defsplitter :entry (fn [i] (if (even? i) :even :odd)))
+      (eem/defbuffer :even 5)
+      (eem/defbuffer :odd 5)))
+
+(doseq [i (range 10)]
+  (eem/notify emitter :entry i))
+
+(eem/state (eem/get-handler emitter :even)) ;; [0 2 4 6 8]
+(eem/state (eem/get-handler emitter :odd)) ;; [1 3 5 7 9]
 ```
 
 ## Topology visualization
