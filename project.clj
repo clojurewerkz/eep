@@ -6,7 +6,7 @@
                  [com.ifesdjeen/utils "0.4.0"]
                  [clojurewerkz/meltdown "1.1.0"]
                  [rhizome "0.2.0"]]
-  :profiles {:1.7 {:dependencies [[org.clojure/clojure "1.7.0-RC2"]]}
+  :profiles {:1.7 {:dependencies [[org.clojure/clojure "1.7.0"]]}
              :master {:dependencies [[org.clojure/clojure "1.7.0-master-SNAPSHOT"]]}
              :dev {:plugins [[codox "0.8.10"]]
                    :codox {:sources ["src/clojure"]
