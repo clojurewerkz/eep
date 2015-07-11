@@ -7,7 +7,7 @@
                  [clojurewerkz/meltdown "1.1.0"]
                  [rhizome "0.2.0"]]
   :profiles {:1.7 {:dependencies [[org.clojure/clojure "1.7.0"]]}
-             :master {:dependencies [[org.clojure/clojure "1.7.0-master-SNAPSHOT"]]}
+             :master {:dependencies [[org.clojure/clojure "1.8.0-master-SNAPSHOT"]]}
              :dev {:plugins [[codox "0.8.10"]]
                    :codox {:sources ["src/clojure"]
                            :output-dir "doc/api"}}}
